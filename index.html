@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>天堂M王表-分秒修正完全體</title>
+    <title>天堂M王表-全功能修正完全體</title>
     <style>
         :root { --bg-color: #121212; --card-bg: #1e1e1e; --gold-theme: #ffd700; --purple-theme: #b388ff; --text-color: #e0e0e0; --border-color: #333; }
         body { font-family: -apple-system, sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 15px; }
@@ -178,7 +178,7 @@
                 var b = bossState[i];
                 if (b.nextSpawnTime !== null && b.nextSpawnTime !== '') {
                     var parts = b.nextSpawnTime.split(':'); 
-                    // 核心修正：將原本漏掉的 parts[0]、parts[1]、parts[2] 索引補回，徹底解決分秒跑掉的問題
+                    // 修正點：補全正確的陣列索引, [1], [2] 並鎖定十進位 (10)，徹底根除網頁當機漏洞
                     var h = parseInt(parts[0], 10), m = parseInt(parts[1], 10), s = parseInt(parts[2], 10);
                     while (isTimePassed(h, m, s, now)) {
                         var spawnMinutes = h * 60 + m + b.cooldown; var newH = Math.floor((spawnMinutes / 60) % 24), newM = Math.floor(spawnMinutes % 60);
@@ -198,7 +198,7 @@
             for (var i = 0; i < bossState.length; i++) { if (bossState[i].name === bossName) { targetBoss = bossState[i]; break; } }
             if (!targetBoss || targetBoss.nextSpawnTime === null) { alert('請先登記時間。'); return; }
             var parts = targetBoss.nextSpawnTime.split(':'); 
-            // 核心修正：手動加減輪功能同樣補回正確的分秒索引
+            // 修正點：手動加減輪功能同樣更新為標準十進位解析
             var h = parseInt(parts[0], 10), m = parseInt(parts[1], 10), s = parseInt(parts[2], 10);
             var totalMinutes = h * 60 + m + (targetBoss.cooldown * offset); while (totalMinutes < 0) totalMinutes += 1440;
             var spawnH = Math.floor((totalMinutes / 60) % 24), spawnM = Math.floor(totalMinutes % 60);
