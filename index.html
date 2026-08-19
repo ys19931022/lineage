@@ -37,20 +37,18 @@
         .tag-purple { background: rgba(179, 136, 255, 0.15); color: var(--purple-theme); border: 1px solid var(--purple-theme); }
         .tag-normal { background: rgba(3, 218, 198, 0.15); color: #03dac6; border: 1px solid #03dac6; }
         
-        /* 狀態標籤樣式調整與新增開機時間標籤 */
         .note-tag { font-size: 0.7rem; padding: 1px 4px; border-radius: 3px; font-weight: bold; margin-left: 4px; }
         .note-enemy { background: #520000; color: #ff8888; border: 1px solid #ff4444; }
         .note-broadcast { background: #002b52; color: #88ccff; border: 1px solid #3399ff; }
-        .note-maint { background: #1b5e20; color: #a5d6a7; border: 1px solid #4caf50; } /* 新增綠色開機時間標籤 */
+        .note-maint { background: #1b5e20; color: #a5d6a7; border: 1px solid #4caf50; }
 
-        /* 現場超時未回報時的黃色警告閃爍效果 */
         @keyframes flash-warning { 0% { color: #ffd700; opacity: 1; } 50% { color: #ff5722; opacity: 0.4; } 100% { color: #ffd700; opacity: 1; } }
         .time-flash { animation: flash-warning 1s infinite; font-weight: 900; text-shadow: 0 0 5px rgba(255,87,34,0.6); }
     </style>
 </head>
 <body>
     <h2>🕒 天堂M 黑緒峰專屬王表</h2>
-    <div id="standard-clock" class="time-marquee">🇹🇼 中原標準時間 ➔ ⏳ 系統校時中...</div>
+    <div id="standard-clock" class="time-marquee">🇹🇼 中原標準時間 ➔ 系統校時中...</div>
 
     <div class="id-panel">
         <span style="color: #ff9800; font-weight: bold; font-size: 0.9rem;">🔑 填單人員 ID：</span>
@@ -136,7 +134,7 @@
             renderTable();
             pullFromCloud();
             setInterval(pullFromCloud, 4000);
-            setInterval(updateClock, 1000); // 每一秒刷新時鐘，同時進行自動閃爍判定
+            setInterval(updateClock, 1000);
         }
         
         function saveLocalID() {
@@ -156,7 +154,7 @@
             var timeStr = (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
             var clockEl = document.getElementById('standard-clock');
             if(clockEl) { clockEl.innerText = "🇹🇼 中原標準時間 ➔ " + timeStr; }
-            renderTable(); // 每秒自動更新畫面狀態，達成黃色超時閃爍警告
+            renderTable(); 
         }
 
         function pullFromCloud() {
@@ -195,7 +193,7 @@
                 var totalMinutes = maintH * 60 + maintM + bossState[i].cooldown;
                 var spawnH = Math.floor((totalMinutes / 60) % 24), spawnM = Math.floor(totalMinutes % 60);
                 bossState[i].nextSpawnTime = (spawnH < 10 ? '0' : '') + spawnH + ':' + (spawnM < 10 ? '0' : '') + spawnM + ':00';
-                bossState[i].skipCount = 0; bossState[i].note = "開機時間"; // 開機一律上標籤
+                bossState[i].skipCount = 0; bossState[i].note = "開機時間"; 
                 bossState[i].updater = myID; 
             }
             pushToCloud(); renderTable(); inputEl.value = ''; alert('開機首波時間已起算並立刻同步！');
@@ -220,7 +218,6 @@
             else { alert('格式錯誤！'); return; }
             if (killH >= 24 || killM >= 60 || killS >= 60) { alert('時間不正確！'); return; }
             
-            // 升級擴充點：新增第 3 選項 ➔ 開機時間
             var noteInput = prompt('請選擇這隻王的狀態標記：\n輸入 1 ➔ 敵吃\n輸入 2 ➔ 廣播\n輸入 3 ➔ 開機時間\n直接確定(留白) ➔ 正常計算', '');
             var bossNote = "";
             if (noteInput === "1") { bossNote = "敵吃"; } else if (noteInput === "2") { bossNote = "廣播"; } else if (noteInput === "3") { bossNote = "開機時間"; }
@@ -274,26 +271,29 @@
                 var b = bossState[i]; var row = document.createElement('div'); row.className = 'boss-row'; 
                 var timeDisplay = '--:--:--'; var isFlashing = false; var autoSkipText = "";
                 
-                // 核心科技：全自動跨場時間校正與自動輪空演算機制
                 if (b.nextSpawnTime) {
                     timeDisplay = b.nextSpawnTime;
                     var parts = b.nextSpawnTime.split(':');
-                    var spawnTotalMinutes = parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+                    var spawnTotalMinutes = parseInt(parts, 10) * 60 + parseInt(parts, 10);
                     
-                    // 跨午夜日曆偏置差額處理
                     var diff = curTotalMinutes - spawnTotalMinutes;
                     if (diff < -720) { diff += 1440; } else if (diff > 720) { diff -= 1440; }
                     
+                    // 核心鐵血更新點：超過 0-5 分鐘內閃爍黃燈，超過 5 分鐘直接切換成亮紅輪空！
                     if (diff >= 0) {
-                        // 1. 如果超時在一輪冷卻時間之內，啟動黃色狂烈閃爍警告
-                        if (diff < b.cooldown) {
-                            isFlashing = true;
-                        } 
-                        // 2. 如果超時整整跨過一輪甚至多輪，啟動「自動累加輪空」覆蓋畫面
-                        else {
-                            var computedSkips = Math.floor(diff / b.cooldown);
-                            autoSkipText = "自動輪空 " + computedSkips;
-                            timeDisplay = autoSkipText;
+                        if (diff <= 5) {
+                            isFlashing = true; // 0 到 5 分鐘現場警戒閃爍
+                        } else {
+                            // 超過 5 分鐘，自動幫推到下一輪並顯示自動輪空
+                            var elapsedRounds = Math.floor((diff - 6) / b.cooldown) + 1;
+                            autoSkipText = "自動輪空 " + elapsedRounds + " 輪";
+                            
+                            // 修正背景倒數時間：自動累加冷卻，確保時間軸隨時最新
+                            var nextValidMinutes = spawnTotalMinutes + (elapsedRounds * b.cooldown);
+                            var nextH = Math.floor((nextValidMinutes / 60) % 24);
+                            var nextM = Math.floor(nextValidMinutes % 60);
+                            var originalSec = parts[2] || "00";
+                            timeDisplay = autoSkipText + " (" + (nextH < 10 ? '0' : '') + nextH + ":" + (nextM < 10 ? '0' : '') + nextM + ":" + originalSec + ")";
                         }
                     }
                 } else if (b.skipCount && b.skipCount > 0) {
@@ -302,7 +302,6 @@
                 
                 var tagClass = b.isPurple ? 'tag-purple' : 'tag-normal', tagText = b.isPurple ? '紫' : '一般';
                 
-                // 狀態標籤生成：擴充支援開機時間綠色標籤
                 var noteHtml = "";
                 if (b.note === "敵吃") { noteHtml = '<span class="note-tag note-enemy">敵吃</span>'; } 
                 else if (b.note === "廣播") { noteHtml = '<span class="note-tag note-broadcast">廣播</span>'; }
@@ -311,10 +310,9 @@
                 var userHtml = "";
                 if (b.updater) { userHtml = '<span class="user-tag">✍️ ' + b.updater + '</span>'; }
                 
-                // 顏色分流控制
                 var timeColor = '#fff';
-                if (autoSkipText !== "") { timeColor = '#ff4444'; } // 自動輪空顯示亮紅色
-                else if (b.skipCount) { timeColor = '#ff4444'; } // 手動輪空顯示紅色
+                if (autoSkipText !== "") { timeColor = '#ff4444'; } 
+                else if (b.skipCount) { timeColor = '#ff4444'; } 
                 else if (b.isPurple && b.nextSpawnTime) { timeColor = 'var(--purple-theme)'; }
                 
                 var flashClassStr = isFlashing ? ' class="boss-time time-flash"' : ' class="boss-time"';
