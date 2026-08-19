@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>天堂M 黑緒峰專屬王表</title>
+    <title>天堂M 黑緒峰專專屬王表</title>
     <style>
         :root { --bg-color: #121212; --card-bg: #1e1e1e; --gold-theme: #ffd700; --purple-theme: #b388ff; --text-color: #e0e0e0; --border-color: #333; }
         body { font-family: -apple-system, sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 15px; }
@@ -11,6 +11,11 @@
         .purple-header { color: var(--purple-theme); border-bottom: 2px solid var(--purple-theme); padding-bottom: 5px; }
         .normal-header { color: #03dac6; border-bottom: 2px solid #03dac6; padding-bottom: 5px; }
         .time-marquee { background: #311b92; color: #ffd700; font-family: monospace; font-size: 1.3rem; font-weight: bold; text-align: center; padding: 8px; border-radius: 6px; margin-bottom: 12px; border: 1px solid var(--purple-theme); box-shadow: 0 0 10px rgba(179, 136, 255, 0.3); }
+        
+        /* 盟友 ID 登錄框樣式 */
+        .id-panel { background: linear-gradient(135deg, #2c1a04, #1a1103); padding: 12px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #ff9800; display: flex; align-items: center; gap: 10px; }
+        .input-id { padding: 8px 12px; background: #000; border: 1px solid #ff9800; color: #ffd700; border-radius: 4px; font-weight: bold; font-size: 0.95rem; flex-grow: 1; }
+        
         .control-panel { background: #262626; padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #444; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
         .input-time { padding: 6px 10px; background: #121212; border: 1px solid #555; color: #fff; border-radius: 4px; font-family: monospace; font-size: 0.9rem; width: 110px; text-align: center; }
         .btn-action { background: #03dac6; color: #000; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.85rem; }
@@ -26,6 +31,11 @@
         .boss-name { font-size: 0.9rem; }
         .boss-actions { display: flex; gap: 5px; }
         .btn-sm { padding: 4px 6px; font-size: 0.75rem; background: #333; border: 1px solid #555; color: #ccc; border-radius: 4px; cursor: pointer; }
+        
+        /* 獨立刪除按鈕與填單人標籤樣式 */
+        .btn-del { padding: 4px 6px; font-size: 0.75rem; background: #5c2514; border: 1px solid #e64a19; color: #ffab91; border-radius: 4px; cursor: pointer; }
+        .user-tag { font-size: 0.7rem; padding: 1px 4px; border-radius: 3px; background: #444; color: #bbb; border: 1px solid #666; margin-left: 5px; font-family: monospace; }
+        
         .status-tag { font-size: 0.7rem; padding: 1px 4px; border-radius: 3px; font-weight: bold; margin-right: 4px; }
         .tag-purple { background: rgba(179, 136, 255, 0.15); color: var(--purple-theme); border: 1px solid var(--purple-theme); }
         .tag-normal { background: rgba(3, 218, 198, 0.15); color: #03dac6; border: 1px solid #03dac6; }
@@ -38,12 +48,18 @@
     <h2>🕒 天堂M 黑緒峰專屬王表</h2>
     <div id="standard-clock" class="time-marquee">🇹🇼 中原標準時間 ➔ ⏳ 系統校時中...</div>
 
+    <!-- 補增：使用王表前強制填寫 ID 的欄位 -->
+    <div class="id-panel">
+        <span style="color: #ff9800; font-weight: bold; font-size: 0.9rem;">🔑 填單人員 ID：</span>
+        <input type="text" id="user-id-input" class="input-id" placeholder="請先輸入您的遊戲內ID（必填，否則無法登記時間）" oninput="saveLocalID()">
+    </div>
+
     <div class="control-panel">
         <div>
             <input type="text" id="maint-start-input" class="input-time" placeholder="輸入開機時間例如 1030">
             <button class="btn-action" onclick="setMaintenanceTime()">📢 登記開機</button>
         </div>
-        <button class="btn-reset" onclick="resetToMaintenance()">清空重置</button>
+        <button class="btn-reset" onclick="resetToMaintenance()">全面重置</button>
     </div>
     <div class="btn-zone">
         <h3 style="color: var(--purple-theme); margin-top:0; font-size:0.9rem;">🌟 點擊按鈕：登記戰況後，【所有盟友手機會自動即時同步，免重新整理】</h3>
@@ -100,9 +116,11 @@
             bossState = [];
             for (var i = 0; i < bossConfig.length; i++) {
                 var b = bossConfig[i];
-                bossState.push({ name: b.name, displayName: b.displayName || b.name, cooldown: b.cooldown, isPurple: b.isPurple, nextSpawnTime: null, skipCount: 0, note: "" });
+                // 補強結構：新增 updater 欄位儲存是誰填單
+                bossState.push({ name: b.name, displayName: b.displayName || b.name, cooldown: b.cooldown, isPurple: b.isPurple, nextSpawnTime: null, skipCount: 0, note: "", updater: "" });
             }
             
+            // 本地快照加載
             var localCache = localStorage.getItem('hms_boss_cache');
             if (localCache) {
                 try {
@@ -110,11 +128,26 @@
                     if (parsed && parsed.length > 0) { bossState = parsed; }
                 } catch(e) {}
             }
+            
+            // 回填之前儲存在手機裡的個人 ID，免去每次重整都要重複輸入的困擾
+            var savedID = localStorage.getItem('hms_user_id');
+            if(savedID) { document.getElementById('user-id-input').value = savedID; }
+            
             renderTable();
-
             pullFromCloud();
             setInterval(pullFromCloud, 4000);
             setInterval(updateClock, 1000);
+        }
+        
+        function saveLocalID() {
+            var idVal = document.getElementById('user-id-input').value.trim();
+            localStorage.setItem('hms_user_id', idVal);
+        }
+        
+        function getValidID() {
+            var idVal = document.getElementById('user-id-input').value.trim();
+            if(!idVal) { alert('❌ 操作失敗！請先在網頁頂端輸入您的【填單人員 ID】！'); return null; }
+            return idVal;
         }
         
         function updateClock() {
@@ -150,6 +183,7 @@
             xhr.send(JSON.stringify(bossState));
         }
         function setMaintenanceTime() {
+            var myID = getValidID(); if(!myID) return;
             var inputEl = document.getElementById('maint-start-input'); var val = inputEl.value.trim().replace(/:/g, '');
             if (!/^\d{4}$/.test(val)) { alert('請輸入精確的 4 位數開機時間，例如 1030'); return; }
             var maintH = parseInt(val.substring(0, 2), 10), maintM = parseInt(val.substring(2, 4), 10);
@@ -161,10 +195,12 @@
                 var spawnH = Math.floor((totalMinutes / 60) % 24), spawnM = Math.floor(totalMinutes % 60);
                 bossState[i].nextSpawnTime = (spawnH < 10 ? '0' : '') + spawnH + ':' + (spawnM < 10 ? '0' : '') + spawnM + ':00';
                 bossState[i].skipCount = 0; bossState[i].note = "";
+                bossState[i].updater = myID; // 記錄開機人員
             }
             pushToCloud(); renderTable(); inputEl.value = ''; alert('開機首波時間已起算並立刻同步！');
         }
         function quickReportKill(bossName) {
+            var myID = getValidID(); if(!myID) return;
             var now = new Date(); var curH = now.getHours(), curM = now.getMinutes(), curS = now.getSeconds();
             var curTimeString = (curH < 10 ? '0' : '') + curH + ':' + (curM < 10 ? '0' : '') + curM + ':' + (curS < 10 ? '0' : '') + curS;
             var targetBoss = null;
@@ -174,7 +210,7 @@
             if (userInput === null) return;
             var cleanInput = userInput.replace(/:/g, '').trim(); 
             if (cleanInput === '') {
-                targetBoss.skipCount = (targetBoss.skipCount || 0) + 1; targetBoss.nextSpawnTime = null; targetBoss.note = "";
+                targetBoss.skipCount = (targetBoss.skipCount || 0) + 1; targetBoss.nextSpawnTime = null; targetBoss.note = ""; targetBoss.updater = myID;
                 pushToCloud(); renderTable(); return;
             }
             var killH, killM, killS = 0;
@@ -189,29 +225,39 @@
 
             var totalMinutes = killH * 60 + killM + targetBoss.cooldown; var spawnH = Math.floor((totalMinutes / 60) % 24), spawnM = Math.floor(totalMinutes % 60);
             targetBoss.nextSpawnTime = (spawnH < 10 ? '0' : '') + spawnH + ':' + (spawnM < 10 ? '0' : '') + spawnM + ':' + (killS < 10 ? '0' : '') + killS;
-            targetBoss.skipCount = 0; targetBoss.note = bossNote;
+            targetBoss.skipCount = 0; targetBoss.note = bossNote; targetBoss.updater = myID; // 記錄回報人員
             pushToCloud(); renderTable();
         }
         function modifyRound(bossName, offset) {
+            var myID = getValidID(); if(!myID) return;
             var targetBoss = null;
             for (var i = 0; i < bossState.length; i++) { if (bossState[i].name === bossName) { targetBoss = bossState[i]; break; } }
             if (!targetBoss || targetBoss.nextSpawnTime === null) { alert('請先登記時間。'); return; }
             var parts = targetBoss.nextSpawnTime.split(':');
             if (parts.length >= 3) {
-                // 鐵血根治點：精準抓取 parts[0] 時、parts[1] 分、parts[2] 秒
                 var h = parseInt(parts[0], 10), m = parseInt(parts[1], 10), s = parseInt(parts[2], 10);
                 var totalMinutes = h * 60 + m + (targetBoss.cooldown * offset);
                 totalMinutes = (totalMinutes % 1440 + 1440) % 1440;
                 var spawnH = Math.floor(totalMinutes / 60), spawnM = Math.floor(totalMinutes % 60);
-                // 鎖死原始秒數 s，使其完全不隨時鐘波動
                 targetBoss.nextSpawnTime = (spawnH < 10 ? '0' : '') + spawnH + ':' + (spawnM < 10 ? '0' : '') + spawnM + ':' + (s < 10 ? '0' : '') + s;
-                targetBoss.note = ""; pushToCloud(); renderTable();
+                targetBoss.note = ""; targetBoss.updater = myID; // 記錄修改人員
+                pushToCloud(); renderTable();
+            }
+        }
+        function deleteSingleBoss(bossName) {
+            var myID = getValidID(); if(!myID) return;
+            var targetBoss = null;
+            for (var i = 0; i < bossState.length; i++) { if (bossState[i].name === bossName) { targetBoss = bossState[i]; break; } }
+            if (!targetBoss) return;
+            if (confirm('確定要单独清除【' + (targetBoss.displayName || targetBoss.name) + '】的時間紀錄嗎？')) {
+                targetBoss.nextSpawnTime = null; targetBoss.skipCount = 0; targetBoss.note = ""; targetBoss.updater = myID;
+                pushToCloud(); renderTable();
             }
         }
         function resetToMaintenance() { 
-            if (confirm('確定要全面清空重置雲端與手機快照嗎？')) { 
+            if (confirm('確定要全面清空重置所有 BOSS 時間嗎？')) { 
                 localStorage.removeItem('hms_boss_cache');
-                for (var i = 0; i < bossState.length; i++) { var b = bossState[i]; b.nextSpawnTime = null; b.skipCount = 0; b.note = ""; }
+                for (var i = 0; i < bossState.length; i++) { var b = bossState[i]; b.nextSpawnTime = null; b.skipCount = 0; b.note = ""; b.updater = ""; }
                 pushToCloud(); renderTable(); 
             } 
         }
@@ -222,10 +268,17 @@
                 var b = bossState[i]; var row = document.createElement('div'); row.className = 'boss-row'; var timeDisplay = '--:--:--';
                 if (b.nextSpawnTime) { timeDisplay = b.nextSpawnTime; } else if (b.skipCount && b.skipCount > 0) { timeDisplay = '輪空 ' + b.skipCount; }
                 var tagClass = b.isPurple ? 'tag-purple' : 'tag-normal', tagText = b.isPurple ? '紫' : '一般';
+                
                 var noteHtml = "";
                 if (b.note === "敵吃") { noteHtml = '<span class="note-tag note-enemy">敵吃</span>'; } else if (b.note === "廣播") { noteHtml = '<span class="note-tag note-broadcast">廣播</span>'; }
+                
+                // 補增：填單人員 ID 標籤生成
+                var userHtml = "";
+                if (b.updater) { userHtml = '<span class="user-tag">✍️ ' + b.updater + '</span>'; }
+                
                 var timeStyleColor = b.skipCount ? '#ff4444' : (b.isPurple && b.nextSpawnTime ? 'var(--purple-theme)' : '#fff');
-                row.innerHTML = '<div class="boss-info"><div class="boss-time" style="color:' + timeStyleColor + '">' + timeDisplay + '</div><div class="boss-name"><span class="status-tag ' + tagClass + '">' + tagText + '</span><strong>' + (b.displayName || b.name) + '</strong>' + noteHtml + '</div></div><div class="boss-actions"><button class="btn-sm" onclick="modifyRound(\'' + b.name + '\', 1)">+1 輪</button><button class="btn-sm" onclick="modifyRound(\'' + b.name + '\', -1)">-1 輪</button></div>';
+                
+                row.innerHTML = '<div class="boss-info"><div class="boss-time" style="color:' + timeStyleColor + '">' + timeDisplay + '</div><div class="boss-name"><span class="status-tag ' + tagClass + '">' + tagText + '</span><strong>' + (b.displayName || b.name) + '</strong>' + noteHtml + userHtml + '</div></div><div class="boss-actions"><button class="btn-sm" onclick="modifyRound(\'' + b.name + '\', 1)">+1 輪</button><button class="btn-sm" onclick="modifyRound(\'' + b.name + '\', -1)">-1 輪</button><button class="btn-del" onclick="deleteSingleBoss(\'' + b.name + '\')">🗑️</button></div>';
                 if (b.isPurple) { pContain.appendChild(row); } else { nContain.appendChild(row); }
             }
         }
