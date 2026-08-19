@@ -3,13 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>天堂M王表-極速流暢體</title>
+    <title>天堂M 黑緒峰專屬王表</title>
     <style>
         :root { --bg-color: #121212; --card-bg: #1e1e1e; --gold-theme: #ffd700; --purple-theme: #b388ff; --text-color: #e0e0e0; --border-color: #333; }
         body { font-family: -apple-system, sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 15px; }
         h2, h3 { margin: 10px 0; color: #fff; }
         .purple-header { color: var(--purple-theme); border-bottom: 2px solid var(--purple-theme); padding-bottom: 5px; }
         .normal-header { color: #03dac6; border-bottom: 2px solid #03dac6; padding-bottom: 5px; }
+        
+        /* 中原標準時間時鐘樣式 */
+        .time-marquee { background: #311b92; color: #ffd700; font-family: monospace; font-size: 1.3rem; font-weight: bold; text-align: center; padding: 8px; border-radius: 6px; margin-bottom: 12px; border: 1px solid var(--purple-theme); box-shadow: 0 0 10px rgba(179, 136, 255, 0.3); }
+        
         .control-panel { background: #262626; padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #444; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
         .input-time { padding: 6px 10px; background: #121212; border: 1px solid #555; color: #fff; border-radius: 4px; font-family: monospace; font-size: 0.9rem; width: 110px; text-align: center; }
         .btn-action { background: #03dac6; color: #000; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.85rem; }
@@ -34,7 +38,11 @@
     </style>
 </head>
 <body>
-    <h2>🕒 天堂M 快速秒數王表系統</h2>
+    <h2>🕒 天堂M 黑緒峰專屬王表</h2>
+    
+    <!-- 補增：中原標準時間即時秒數跑馬燈時鐘 -->
+    <div id="standard-clock" class="time-marquee">🇹🇼 中原標準時間：⏳ 載入中...</div>
+
     <div class="control-panel">
         <div>
             <input type="text" id="maint-start-input" class="input-time" placeholder="輸入開機時間例如 1030">
@@ -98,9 +106,20 @@
                 bossState.push({ name: b.name, displayName: b.displayName || b.name, cooldown: b.cooldown, isPurple: b.isPurple, nextSpawnTime: null, skipCount: 0, note: "" });
             }
             pullFromCloud();
-            // 修正點：每4秒單純下載同步一次，不再執行背景 autoCheckDeadLoop，徹底避免記憶體衝高當機
             setInterval(pullFromCloud, 4000);
+            
+            // 啟動每秒中原標準時間即時更新
+            setInterval(updateClock, 1000);
         }
+        
+        function updateClock() {
+            var now = new Date();
+            var h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
+            var timeStr = (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+            var clockEl = document.getElementById('standard-clock');
+            if(clockEl) { clockEl.innerText = "🇹🇼 中原標準時間 ➔ " + timeStr; }
+        }
+
         function pullFromCloud() {
             var xhr = new XMLHttpRequest();
             xhr.open("GET", syncUrl, true);
@@ -109,7 +128,10 @@
                     if (xhr.status === 200 && xhr.responseText.trim() !== "") {
                         try {
                             var res = JSON.parse(xhr.responseText);
-                            if (res && res.length > 0) { bossState = res; }
+                            // 關鍵格式防護：清洗並確保讀取出的資料完全具備所有必要的欄位規格
+                            if (res && res.length > 0 && typeof res[0].name !== 'undefined') { 
+                                bossState = res; 
+                            }
                         } catch(e) {}
                     }
                     renderTable();
