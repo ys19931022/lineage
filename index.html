@@ -237,7 +237,7 @@
             if (!targetBoss || targetBoss.nextSpawnTime === null) { alert('請先登記時間。'); return; }
             var parts = targetBoss.nextSpawnTime.split(':');
             if (parts.length >= 3) {
-                var h = parseInt(parts, 10), m = parseInt(parts, 10), s = parseInt(parts, 10);
+                var h = parseInt(parts[0], 10), m = parseInt(parts[1], 10), s = parseInt(parts[2], 10);
                 var totalMinutes = h * 60 + m + (targetBoss.cooldown * offset);
                 totalMinutes = (totalMinutes % 1440 + 1440) % 1440;
                 var spawnH = Math.floor(totalMinutes / 60), spawnM = Math.floor(totalMinutes % 60);
@@ -275,9 +275,10 @@
                 var timeDisplay = '--:--:--'; var isFlashing = false; var autoSkipCount = 0;
                 
                 if (b.nextSpawnTime) {
-                    timeDisplay = b.nextSpawnTime;
-                    var parts = b.nextSpawnTime.split(':');
-                    var origH = parseInt(parts, 10), origM = parseInt(parts, 10), origS = parts;
+                    var rawParts = b.nextSpawnTime.split(':');
+                    var origH = parseInt(rawParts[0], 10);
+                    var origM = parseInt(rawParts[1], 10);
+                    var origSStr = rawParts[2] ? rawParts[2].substring(0, 2) : "00"; 
                     var spawnTotalMinutes = origH * 60 + origM;
                     
                     var diff = curTotalMinutes - spawnTotalMinutes;
@@ -286,12 +287,17 @@
                     if (diff >= 0) {
                         if (diff <= 5) {
                             isFlashing = true; 
+                            timeDisplay = b.nextSpawnTime;
                         } else {
                             autoSkipCount = Math.floor((diff - 6) / b.cooldown) + 1;
                             var nextValidMinutes = spawnTotalMinutes + (autoSkipCount * b.cooldown);
                             var nextH = Math.floor((nextValidMinutes / 60) % 24);
-                            timeDisplay = (nextH < 10 ? '0' : '') + nextH + ":" + (origM < 10 ? '0' : '') + origM + ":" + origS;
+                            
+                            // 鋼鐵解法：只拿最乾淨的記憶體欄位拼裝，分秒 100% 絕對被鎖死不飄移！
+                            timeDisplay = (nextH < 10 ? '0' : '') + nextH + ":" + (origM < 10 ? '0' : '') + origM + ":" + origSStr;
                         }
+                    } else {
+                        timeDisplay = b.nextSpawnTime;
                     }
                 } else if (b.skipCount && b.skipCount > 0) {
                     timeDisplay = '手動輪空 ' + b.skipCount;
