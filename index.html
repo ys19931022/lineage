@@ -23,11 +23,13 @@
         .boss-btn-purple { background: linear-gradient(135deg, #4a148c, #311b92); color: #fff; border: 2px solid var(--purple-theme); padding: 10px 5px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85rem; text-shadow: 1px 1px 2px #000; width: 100%; }
         .boss-btn-normal { background: #2c2c2c; color: #e0e0e0; border: 1px solid #555; padding: 8px 5px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; width: 100%; }
         .btn-reset { background: #cf6679; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.85rem; }
+        
         .boss-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
         .boss-row { display: flex; align-items: center; justify-content: space-between; background: var(--card-bg); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); }
         .boss-info { display: flex; align-items: center; gap: 10px; }
         .boss-time { font-size: 1.1rem; font-weight: bold; font-family: monospace; min-width: 75px; color: #fff; }
         .boss-name { font-size: 0.9rem; }
+        
         .boss-actions { display: flex; gap: 5px; }
         .btn-sm { padding: 4px 6px; font-size: 0.75rem; background: #333; border: 1px solid #555; color: #ccc; border-radius: 4px; cursor: pointer; }
         .btn-del { padding: 4px 6px; font-size: 0.75rem; background: #5c2514; border: 1px solid #e64a19; color: #ffab91; border-radius: 4px; cursor: pointer; font-weight: bold; }
@@ -41,6 +43,7 @@
         .note-enemy { background: #520000; color: #ff8888; border: 1px solid #ff4444; }
         .note-broadcast { background: #002b52; color: #88ccff; border: 1px solid #3399ff; }
         .note-maint { background: #1b5e20; color: #a5d6a7; border: 1px solid #4caf50; }
+        .note-autoskip { background: #4a0007; color: #ff8a80; border: 1px solid #ff5252; }
 
         @keyframes flash-warning { 0% { color: #ffd700; opacity: 1; } 50% { color: #ff5722; opacity: 0.4; } 100% { color: #ffd700; opacity: 1; } }
         .time-flash { animation: flash-warning 1s infinite; font-weight: 900; text-shadow: 0 0 5px rgba(255,87,34,0.6); }
@@ -48,7 +51,7 @@
 </head>
 <body>
     <h2>🕒 天堂M 黑緒峰專屬王表</h2>
-    <div id="standard-clock" class="time-marquee">🇹🇼 中原標準時間 ➔ 系統校時中...</div>
+    <div id="standard-clock" class="time-marquee">🇹🇼 中原標準時間 ➔ ⏳ 系統校時中...</div>
 
     <div class="id-panel">
         <span style="color: #ff9800; font-weight: bold; font-size: 0.9rem;">🔑 填單人員 ID：</span>
@@ -234,7 +237,7 @@
             if (!targetBoss || targetBoss.nextSpawnTime === null) { alert('請先登記時間。'); return; }
             var parts = targetBoss.nextSpawnTime.split(':');
             if (parts.length >= 3) {
-                var h = parseInt(parts, 10), m = parseInt(parts, 10), s = parseInt(parts, 10);
+                var h = parseInt(parts[0], 10), m = parseInt(parts[1], 10), s = parseInt(parts[2], 10);
                 var totalMinutes = h * 60 + m + (targetBoss.cooldown * offset);
                 totalMinutes = (totalMinutes % 1440 + 1440) % 1440;
                 var spawnH = Math.floor(totalMinutes / 60), spawnM = Math.floor(totalMinutes % 60);
@@ -269,35 +272,29 @@
 
             for (var i = 0; i < bossState.length; i++) {
                 var b = bossState[i]; var row = document.createElement('div'); row.className = 'boss-row'; 
-                var timeDisplay = '--:--:--'; var isFlashing = false; var autoSkipText = "";
+                var timeDisplay = '--:--:--'; var isFlashing = false; var autoSkipCount = 0;
                 
                 if (b.nextSpawnTime) {
                     timeDisplay = b.nextSpawnTime;
                     var parts = b.nextSpawnTime.split(':');
-                    var spawnTotalMinutes = parseInt(parts, 10) * 60 + parseInt(parts, 10);
+                    var origH = parseInt(parts[0], 10), origM = parseInt(parts[1], 10), origS = parts[2];
+                    var spawnTotalMinutes = origH * 60 + origM;
                     
                     var diff = curTotalMinutes - spawnTotalMinutes;
                     if (diff < -720) { diff += 1440; } else if (diff > 720) { diff -= 1440; }
                     
-                    // 核心鐵血更新點：超過 0-5 分鐘內閃爍黃燈，超過 5 分鐘直接切換成亮紅輪空！
                     if (diff >= 0) {
                         if (diff <= 5) {
-                            isFlashing = true; // 0 到 5 分鐘現場警戒閃爍
+                            isFlashing = true; 
                         } else {
-                            // 超過 5 分鐘，自動幫推到下一輪並顯示自動輪空
-                            var elapsedRounds = Math.floor((diff - 6) / b.cooldown) + 1;
-                            autoSkipText = "自動輪空 " + elapsedRounds + " 輪";
-                            
-                            // 修正背景倒數時間：自動累加冷卻，確保時間軸隨時最新
-                            var nextValidMinutes = spawnTotalMinutes + (elapsedRounds * b.cooldown);
+                            autoSkipCount = Math.floor((diff - 6) / b.cooldown) + 1;
+                            var nextValidMinutes = spawnTotalMinutes + (autoSkipCount * b.cooldown);
                             var nextH = Math.floor((nextValidMinutes / 60) % 24);
-                            var nextM = Math.floor(nextValidMinutes % 60);
-                            var originalSec = parts[2] || "00";
-                            timeDisplay = autoSkipText + " (" + (nextH < 10 ? '0' : '') + nextH + ":" + (nextM < 10 ? '0' : '') + nextM + ":" + originalSec + ")";
+                            timeDisplay = (nextH < 10 ? '0' : '') + nextH + ":" + (origM < 10 ? '0' : '') + origM + ":" + origS;
                         }
                     }
                 } else if (b.skipCount && b.skipCount > 0) {
-                    timeDisplay = '輪空 ' + b.skipCount;
+                    timeDisplay = '手動輪空 ' + b.skipCount;
                 }
                 
                 var tagClass = b.isPurple ? 'tag-purple' : 'tag-normal', tagText = b.isPurple ? '紫' : '一般';
@@ -307,11 +304,15 @@
                 else if (b.note === "廣播") { noteHtml = '<span class="note-tag note-broadcast">廣播</span>'; }
                 else if (b.note === "開機時間") { noteHtml = '<span class="note-tag note-maint">開機時間</span>'; }
                 
+                if (autoSkipCount > 0) {
+                    noteHtml += '<span class="note-tag note-autoskip">自動輪空 ' + autoSkipCount + ' 輪</span>';
+                }
+                
                 var userHtml = "";
                 if (b.updater) { userHtml = '<span class="user-tag">✍️ ' + b.updater + '</span>'; }
                 
                 var timeColor = '#fff';
-                if (autoSkipText !== "") { timeColor = '#ff4444'; } 
+                if (autoSkipCount > 0) { timeColor = '#ff4444'; } 
                 else if (b.skipCount) { timeColor = '#ff4444'; } 
                 else if (b.isPurple && b.nextSpawnTime) { timeColor = 'var(--purple-theme)'; }
                 
