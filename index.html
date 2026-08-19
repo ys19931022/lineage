@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>天堂M王表-全功能修正完全體</title>
+    <title>天堂M王表-防死迴圈終極版</title>
     <style>
         :root { --bg-color: #121212; --card-bg: #1e1e1e; --gold-theme: #ffd700; --purple-theme: #b388ff; --text-color: #e0e0e0; --border-color: #333; }
         body { font-family: -apple-system, sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 15px; }
@@ -109,9 +109,7 @@
                     if (xhr.status === 200 && xhr.responseText.trim() !== "") {
                         try {
                             var res = JSON.parse(xhr.responseText);
-                            if (res && res.length > 0) {
-                                bossState = res;
-                            }
+                            if (res && res.length > 0) { bossState = res; }
                         } catch(e) {}
                     }
                     renderTable();
@@ -135,8 +133,7 @@
                 var totalMinutes = maintH * 60 + maintM + bossState[i].cooldown;
                 var spawnH = Math.floor((totalMinutes / 60) % 24), spawnM = Math.floor(totalMinutes % 60);
                 bossState[i].nextSpawnTime = (spawnH < 10 ? '0' : '') + spawnH + ':' + (spawnM < 10 ? '0' : '') + spawnM + ':00';
-                bossState[i].skipCount = 0;
-                bossState[i].note = "";
+                bossState[i].skipCount = 0; bossState[i].note = "";
             }
             autoCheckAndPushTime(); pushToCloud(); renderTable(); inputEl.value = ''; alert('開機首波時間已起算並立刻同步！');
         }
@@ -150,9 +147,7 @@
             if (userInput === null) return;
             var cleanInput = userInput.replace(/:/g, '').trim(); 
             if (cleanInput === '') {
-                targetBoss.skipCount = (targetBoss.skipCount || 0) + 1;
-                targetBoss.nextSpawnTime = null;
-                targetBoss.note = "";
+                targetBoss.skipCount = (targetBoss.skipCount || 0) + 1; targetBoss.nextSpawnTime = null; targetBoss.note = "";
                 pushToCloud(); renderTable(); return;
             }
             var killH, killM, killS = 0;
@@ -163,13 +158,11 @@
             
             var noteInput = prompt('請選擇這隻王的狀態標記：\n輸入 1 ➔ 敵吃\n輸入 2 ➔ 廣播\n直接確定(留白) ➔ 正常計算', '');
             var bossNote = "";
-            if (noteInput === "1") { bossNote = "敵吃"; }
-            else if (noteInput === "2") { bossNote = "廣播"; }
+            if (noteInput === "1") { bossNote = "敵吃"; } else if (noteInput === "2") { bossNote = "廣播"; }
 
             var totalMinutes = killH * 60 + killM + targetBoss.cooldown; var spawnH = Math.floor((totalMinutes / 60) % 24), spawnM = Math.floor(totalMinutes % 60);
             targetBoss.nextSpawnTime = (spawnH < 10 ? '0' : '') + spawnH + ':' + (spawnM < 10 ? '0' : '') + spawnM + ':' + (killS < 10 ? '0' : '') + killS;
-            targetBoss.skipCount = 0;
-            targetBoss.note = bossNote;
+            targetBoss.skipCount = 0; targetBoss.note = bossNote;
             autoCheckAndPushTime(); pushToCloud(); renderTable();
         }
         function autoCheckAndPushTime() {
@@ -177,13 +170,21 @@
             for (var i = 0; i < bossState.length; i++) {
                 var b = bossState[i];
                 if (b.nextSpawnTime !== null && b.nextSpawnTime !== '') {
-                    var parts = b.nextSpawnTime.split(':'); 
-                    // 修正點：補全正確的陣列索引, [1], [2] 並鎖定十進位 (10)，徹底根除網頁當機漏洞
-                    var h = parseInt(parts[0], 10), m = parseInt(parts[1], 10), s = parseInt(parts[2], 10);
-                    while (isTimePassed(h, m, s, now)) {
-                        var spawnMinutes = h * 60 + m + b.cooldown; var newH = Math.floor((spawnMinutes / 60) % 24), newM = Math.floor(spawnMinutes % 60);
-                        b.nextSpawnTime = (newH < 10 ? '0' : '') + newH + ':' + (newM < 10 ? '0' : '') + newM + ':' + (s < 10 ? '0' : '') + s; h = newH; m = newM; updated = true;
-                        b.note = "";
+                    var parts = b.nextSpawnTime.split(':');
+                    if (parts.length >= 2) {
+                        var h = parseInt(parts[0], 10), m = parseInt(parts[1], 10), s = parts[2] ? parseInt(parts[2], 10) : 0;
+                        // 安全優化：移除 while 迴圈，改用單次 if 判斷搭配精準數學模數運算，100% 免疫網頁凍結閃退
+                        if (isTimePassed(h, m, s, now)) {
+                            var currentTotalMinutes = now.getHours() * 60 + now.getMinutes();
+                            var targetTotalMinutes = h * 60 + m;
+                            var diff = currentTotalMinutes - targetTotalMinutes;
+                            var periods = Math.floor(diff / b.cooldown) + 1;
+                            if (periods < 1) periods = 1;
+                            var nextTotal = targetTotalMinutes + (periods * b.cooldown);
+                            var spawnH = Math.floor((nextTotal / 60) % 24), spawnM = Math.floor(nextTotal % 60);
+                            b.nextSpawnTime = (spawnH < 10 ? '0' : '') + spawnH + ':' + (spawnM < 10 ? '0' : '') + spawnM + ':' + (s < 10 ? '0' : '') + s;
+                            b.note = ""; updated = true;
+                        }
                     }
                 }
             }
@@ -197,20 +198,18 @@
             var targetBoss = null;
             for (var i = 0; i < bossState.length; i++) { if (bossState[i].name === bossName) { targetBoss = bossState[i]; break; } }
             if (!targetBoss || targetBoss.nextSpawnTime === null) { alert('請先登記時間。'); return; }
-            var parts = targetBoss.nextSpawnTime.split(':'); 
-            // 修正點：手動加減輪功能同樣更新為標準十進位解析
-            var h = parseInt(parts[0], 10), m = parseInt(parts[1], 10), s = parseInt(parts[2], 10);
-            var totalMinutes = h * 60 + m + (targetBoss.cooldown * offset); while (totalMinutes < 0) totalMinutes += 1440;
-            var spawnH = Math.floor((totalMinutes / 60) % 24), spawnM = Math.floor(totalMinutes % 60);
-            targetBoss.nextSpawnTime = (spawnH < 10 ? '0' : '') + spawnH + ':' + (spawnM < 10 ? '0' : '') + spawnM + ':' + (s < 10 ? '0' : '') + s;
-            targetBoss.note = "";
-            autoCheckAndPushTime(); pushToCloud(); renderTable();
+            var parts = targetBoss.nextSpawnTime.split(':');
+            if (parts.length >= 2) {
+                var h = parseInt(parts[0], 10), m = parseInt(parts[1], 10), s = parts[2] ? parseInt(parts[2], 10) : 0;
+                var totalMinutes = h * 60 + m + (targetBoss.cooldown * offset); while (totalMinutes < 0) totalMinutes += 1440;
+                var spawnH = Math.floor((totalMinutes / 60) % 24), spawnM = Math.floor(totalMinutes % 60);
+                targetBoss.nextSpawnTime = (spawnH < 10 ? '0' : '') + spawnH + ':' + (spawnM < 10 ? '0' : '') + spawnM + ':' + (s < 10 ? '0' : '') + s;
+                targetBoss.note = ""; autoCheckAndPushTime(); pushToCloud(); renderTable();
+            }
         }
         function resetToMaintenance() { 
             if (confirm('確定要全面清空重置雲端資料嗎？')) { 
-                for (var i = 0; i < bossState.length; i++) {
-                    bossState[i].nextSpawnTime = null; bossState[i].skipCount = 0; bossState[i].note = "";
-                }
+                for (var i = 0; i < bossState.length; i++) { b = bossState[i]; b.nextSpawnTime = null; b.skipCount = 0; b.note = ""; }
                 pushToCloud(); renderTable(); 
             } 
         }
@@ -220,14 +219,10 @@
             for (var i = 0; i < bossState.length; i++) {
                 var b = bossState[i]; var row = document.createElement('div'); row.className = 'boss-row'; var timeDisplay = '--:--:--';
                 if (b.nextSpawnTime) { timeDisplay = b.nextSpawnTime; } else if (b.skipCount && b.skipCount > 0) { timeDisplay = '輪空 ' + b.skipCount; }
-                
                 var tagClass = b.isPurple ? 'tag-purple' : 'tag-normal', tagText = b.isPurple ? '紫' : '一般';
                 var noteHtml = "";
-                if (b.note === "敵吃") { noteHtml = '<span class="note-tag note-enemy">敵吃</span>'; }
-                else if (b.note === "廣播") { noteHtml = '<span class="note-tag note-broadcast">廣播</span>'; }
-                
+                if (b.note === "敵吃") { noteHtml = '<span class="note-tag note-enemy">敵吃</span>'; } else if (b.note === "廣播") { noteHtml = '<span class="note-tag note-broadcast">廣播</span>'; }
                 var timeStyleColor = b.skipCount ? '#ff4444' : (b.isPurple && b.nextSpawnTime ? 'var(--purple-theme)' : '#fff');
-                
                 row.innerHTML = '<div class="boss-info"><div class="boss-time" style="color:' + timeStyleColor + '">' + timeDisplay + '</div><div class="boss-name"><span class="status-tag ' + tagClass + '">' + tagText + '</span><strong>' + (b.displayName || b.name) + '</strong>' + noteHtml + '</div></div><div class="boss-actions"><button class="btn-sm" onclick="modifyRound(\'' + b.name + '\', 1)">+1 輪</button><button class="btn-sm" onclick="modifyRound(\'' + b.name + '\', -1)">-1 輪</button></div>';
                 if (b.isPurple) { pContain.appendChild(row); } else { nContain.appendChild(row); }
             }
