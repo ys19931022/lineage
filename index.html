@@ -97,14 +97,12 @@
         var bossState = [];
 
         function initSystem() {
-            // 第一重保障：立刻建立基本資料
             bossState = [];
             for (var i = 0; i < bossConfig.length; i++) {
                 var b = bossConfig[i];
                 bossState.push({ name: b.name, displayName: b.displayName || b.name, cooldown: b.cooldown, isPurple: b.isPurple, nextSpawnTime: null, skipCount: 0, note: "" });
             }
             
-            // 第二重保障：重新整理時，0.001秒內優先抽取出本機快照，防止空白畫面
             var localCache = localStorage.getItem('hms_boss_cache');
             if (localCache) {
                 try {
@@ -114,7 +112,6 @@
             }
             renderTable();
 
-            // 第三重保障：去雲端同步盟友回報的最新戰況
             pullFromCloud();
             setInterval(pullFromCloud, 4000);
             setInterval(updateClock, 1000);
@@ -135,7 +132,6 @@
                 if (xhr.readyState === 4 && xhr.status === 200 && xhr.responseText.trim() !== "") {
                     try {
                         var res = JSON.parse(xhr.responseText);
-                        // 鐵血根治點：只要判定是陣列且有資料，立刻完全加載，不再加上錯誤的物件欄位限制
                         if (res && Array.isArray(res) && res.length > 0) { 
                             bossState = res;
                             localStorage.setItem('hms_boss_cache', JSON.stringify(bossState));
@@ -147,7 +143,6 @@
             xhr.send();
         }
         function pushToCloud() {
-            // 同步寫入本機與雲端
             localStorage.setItem('hms_boss_cache', JSON.stringify(bossState));
             var xhr = new XMLHttpRequest();
             xhr.open("POST", syncUrl, true);
@@ -202,11 +197,13 @@
             for (var i = 0; i < bossState.length; i++) { if (bossState[i].name === bossName) { targetBoss = bossState[i]; break; } }
             if (!targetBoss || targetBoss.nextSpawnTime === null) { alert('請先登記時間。'); return; }
             var parts = targetBoss.nextSpawnTime.split(':');
-            if (parts.length >= 2) {
-                var h = parseInt(parts, 10), m = parseInt(parts, 10), s = parts ? parseInt(parts, 10) : 0;
+            if (parts.length >= 3) {
+                // 鐵血根治點：精準抓取 parts[0] 時、parts[1] 分、parts[2] 秒
+                var h = parseInt(parts[0], 10), m = parseInt(parts[1], 10), s = parseInt(parts[2], 10);
                 var totalMinutes = h * 60 + m + (targetBoss.cooldown * offset);
                 totalMinutes = (totalMinutes % 1440 + 1440) % 1440;
                 var spawnH = Math.floor(totalMinutes / 60), spawnM = Math.floor(totalMinutes % 60);
+                // 鎖死原始秒數 s，使其完全不隨時鐘波動
                 targetBoss.nextSpawnTime = (spawnH < 10 ? '0' : '') + spawnH + ':' + (spawnM < 10 ? '0' : '') + spawnM + ':' + (s < 10 ? '0' : '') + s;
                 targetBoss.note = ""; pushToCloud(); renderTable();
             }
