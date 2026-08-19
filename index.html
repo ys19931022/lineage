@@ -10,10 +10,7 @@
         h2, h3 { margin: 10px 0; color: #fff; }
         .purple-header { color: var(--purple-theme); border-bottom: 2px solid var(--purple-theme); padding-bottom: 5px; }
         .normal-header { color: #03dac6; border-bottom: 2px solid #03dac6; padding-bottom: 5px; }
-        
-        /* 中原標準時間時鐘樣式 */
         .time-marquee { background: #311b92; color: #ffd700; font-family: monospace; font-size: 1.3rem; font-weight: bold; text-align: center; padding: 8px; border-radius: 6px; margin-bottom: 12px; border: 1px solid var(--purple-theme); box-shadow: 0 0 10px rgba(179, 136, 255, 0.3); }
-        
         .control-panel { background: #262626; padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #444; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
         .input-time { padding: 6px 10px; background: #121212; border: 1px solid #555; color: #fff; border-radius: 4px; font-family: monospace; font-size: 0.9rem; width: 110px; text-align: center; }
         .btn-action { background: #03dac6; color: #000; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.85rem; }
@@ -35,15 +32,11 @@
         .note-tag { font-size: 0.7rem; padding: 1px 4px; border-radius: 3px; font-weight: bold; margin-left: 4px; }
         .note-enemy { background: #520000; color: #ff8888; border: 1px solid #ff4444; }
         .note-broadcast { background: #002b52; color: #88ccff; border: 1px solid #3399ff; }
-        
-        /* 雲端讀取保護遮罩提示 */
         .loading-mask { text-align: center; color: var(--gold-theme); font-weight: bold; padding: 20px; font-size: 1.1rem; background: #262626; border-radius: 8px; border: 1px solid var(--gold-theme); margin: 20px 0; }
     </style>
 </head>
 <body>
     <h2>🕒 天堂M 黑緒峰專屬王表</h2>
-    
-    <!-- 中原標準時間即時秒數跑馬燈 -->
     <div id="standard-clock" class="time-marquee">🇹🇼 中原標準時間 ➔ ⏳ 系統校時中...</div>
 
     <div class="control-panel">
@@ -107,7 +100,7 @@
             { name: "881left飛龍", displayName: "881左飛龍", cooldown: 120, isPurple: false }, { name: "882right飛龍", displayName: "882右飛龍", cooldown: 120, isPurple: false }, { name: "綠王", cooldown: 120, isPurple: false }, { name: "紅王", cooldown: 120, isPurple: false }, { name: "四色", cooldown: 120, isPurple: false }, { name: "巨型蠕蟲(海底)", cooldown: 120, isPurple: false }, { name: "大黑長者", cooldown: 180, isPurple: false }, { name: "85飛龍", cooldown: 180, isPurple: false }, { name: "87飛龍", cooldown: 180, isPurple: false }, { name: "強盜頭目", cooldown: 180, isPurple: false }, { name: "樹精", cooldown: 180, isPurple: false }, { name: "巨大鱷魚", cooldown: 180, isPurple: false }, { name: "大腳瑪幽", cooldown: 180, isPurple: false }, { name: "變形怪首領", cooldown: 210, isPurple: false }, { name: "巨大守護螞蟻", cooldown: 210, isPurple: false }, { name: "奈克諾斯", cooldown: 240, isPurple: false }, { name: "蜘蛛", cooldown: 240, isPurple: false }, { name: "力卡溫", cooldown: 480, isPurple: false }, { name: "惡魔監視者", cooldown: 360, isPurple: false }, { name: "烏勒庫斯", cooldown: 360, isPurple: false }, { name: "卡司特王", cooldown: 450, isPurple: false }
         ];
         var bossState = [];
-        var isCloudLoaded = false; // 強制安全鎖
+        var isCloudLoaded = false; 
 
         function initSystem() {
             bossState = [];
@@ -115,9 +108,7 @@
                 var b = bossConfig[i];
                 bossState.push({ name: b.name, displayName: b.displayName || b.name, cooldown: b.cooldown, isPurple: b.isPurple, nextSpawnTime: null, skipCount: 0, note: "" });
             }
-            // 優先從雲端抓取最新的真實資料
             pullFromCloud();
-            // 定時被動下載同步，絕不主動亂蓋雲端
             setInterval(pullFromCloud, 4000);
             setInterval(updateClock, 1000);
         }
@@ -135,33 +126,30 @@
             xhr.open("GET", syncUrl, true);
             xhr.onreadystatechange = function() {
                 if (xhr.readyState === 4) {
+                    isCloudLoaded = true; // 破冰關鍵：只要伺服器回應了，一律強制開啟安全鎖解鎖網頁
                     if (xhr.status === 200 && xhr.responseText.trim() !== "") {
                         try {
                             var res = JSON.parse(xhr.responseText);
-                            // 修正核心：只要下載的是合格的 List 表格，立刻替換，解開安全鎖並畫出畫面
-                            if (res && Array.isArray(res) && res.length > 0) { 
-                                bossState = res;
-                                isCloudLoaded = true; 
-                                renderTable(); 
+                            // 只要雲端下載的列表裡面有資料，立刻同步給手機
+                            if (res && Array.isArray(res) && res.length > 0 && res[0].name) { 
+                                bossState = res; 
                             }
                         } catch(e) {}
-                    } else {
-                        // 如果雲端尚未建立任何資料(404)，也判定為可安全寫入
-                        isCloudLoaded = true;
-                        renderTable();
                     }
+                    renderTable();
                 }
             };
             xhr.send();
         }
         function pushToCloud() {
-            if (!isCloudLoaded) return; // 沒下載成功前，死也絕對不准上傳，防覆蓋
+            if (!isCloudLoaded) return; 
             var xhr = new XMLHttpRequest();
             xhr.open("POST", syncUrl, true);
             xhr.setRequestHeader("Content-Type", "application/json");
             xhr.send(JSON.stringify(bossState));
-        }        function setMaintenanceTime() {
-            if (!isCloudLoaded) { alert('系統尚未從雲端下載完畢，請稍後再試！'); return; }
+        }
+        function setMaintenanceTime() {
+            if (!isCloudLoaded) { alert('系統連線中，請稍後再試！'); return; }
             var inputEl = document.getElementById('maint-start-input'); var val = inputEl.value.trim().replace(/:/g, '');
             if (!/^\d{4}$/.test(val)) { alert('請輸入精確的 4 位數開機時間，例如 1030'); return; }
             var maintH = parseInt(val.substring(0, 2), 10), maintM = parseInt(val.substring(2, 4), 10);
@@ -213,7 +201,6 @@
             if (parts.length >= 2) {
                 var h = parseInt(parts[0], 10), m = parseInt(parts[1], 10), s = parts[2] ? parseInt(parts[2], 10) : 0;
                 var totalMinutes = h * 60 + m + (targetBoss.cooldown * offset);
-                // 核心優化：徹底移除 while 迴圈！改用純數學餘數加減，100% 防止死迴圈當機
                 totalMinutes = (totalMinutes % 1440 + 1440) % 1440;
                 var spawnH = Math.floor(totalMinutes / 60), spawnM = Math.floor(totalMinutes % 60);
                 targetBoss.nextSpawnTime = (spawnH < 10 ? '0' : '') + spawnH + ':' + (spawnM < 10 ? '0' : '') + spawnM + ':' + (s < 10 ? '0' : '') + s;
