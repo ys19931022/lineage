@@ -264,7 +264,7 @@
             if (!targetBoss || targetBoss.nextSpawnTime === null) { alert('請先登記時間。'); return; }
             var parts = targetBoss.nextSpawnTime.split(':');
             if (parts.length >= 3) {
-                var h = parseInt(parts, 10), m = parseInt(parts, 10), s = parseInt(parts, 10);
+                var h = parseInt(parts[0], 10), m = parseInt(parts[1], 10), s = parseInt(parts[2], 10);
                 var totalMinutes = h * 60 + m + (targetBoss.cooldown * offset);
                 totalMinutes = (totalMinutes % 1440 + 1440) % 1440;
                 var spawnH = Math.floor(totalMinutes / 60), spawnM = Math.floor(totalMinutes % 60);
@@ -301,7 +301,7 @@
                 var b = bossState[i]; var row = document.createElement('div'); row.className = 'boss-row'; 
                 var timeDisplay = '--:--:--'; var isFlashing = false; var autoSkipCount = 0;
                 
-                // 鋼鐵安全復核機制：強制以主程式碼設定為唯一標準，徹底阻斷舊資料污染
+                // 鋼鐵分類機制：強制直接讀取主程式原始設定，徹底殺死雲端舊殘留的 isPurple
                 var realIsPurple = b.isPurple;
                 for (var j = 0; j < bossConfig.length; j++) {
                     if (bossConfig[j].name === b.name) { realIsPurple = bossConfig[j].isPurple; break; }
@@ -309,9 +309,9 @@
                 
                 if (b.nextSpawnTime) {
                     var rawParts = b.nextSpawnTime.split(':');
-                    var origH = parseInt(rawParts, 10);
-                    var origM = parseInt(rawParts, 10);
-                    var origSStr = rawParts ? rawParts.substring(0, 2) : "00"; 
+                    var origH = parseInt(rawParts[0], 10);
+                    var origM = parseInt(rawParts[1], 10);
+                    var origSStr = rawParts[2] ? rawParts[2].substring(0, 2) : "00"; 
                     var spawnTotalMinutes = origH * 60 + origM;
                     
                     var diff = curTotalMinutes - spawnTotalMinutes;
@@ -341,7 +341,9 @@
                 else if (b.note === "開機時間") { noteHtml = '<span class="note-tag note-maint">開機時間</span>'; }
                 
                 if (autoSkipCount > 0) { noteHtml += '<span class="note-tag note-autoskip">自動輪空 ' + autoSkipCount + ' 輪</span>'; }
-                if (b.updater) { userHtml = '<span class="user-tag">✍️ ' + b.updater + '</span>'; } else { userHtml = ""; }
+                
+                var userHtml = "";
+                if (b.updater) { userHtml = '<span class="user-tag">✍️ ' + b.updater + '</span>'; }
                 
                 var timeColor = '#fff';
                 if (autoSkipCount > 0 || b.skipCount) { timeColor = '#ff4444'; } 
