@@ -10,10 +10,7 @@
         h2, h3 { margin: 10px 0; color: #fff; }
         .purple-header { color: var(--purple-theme); border-bottom: 2px solid var(--purple-theme); padding-bottom: 5px; }
         .normal-header { color: #03dac6; border-bottom: 2px solid #03dac6; padding-bottom: 5px; }
-        
-        /* 中原標準時間時鐘樣式 */
         .time-marquee { background: #311b92; color: #ffd700; font-family: monospace; font-size: 1.3rem; font-weight: bold; text-align: center; padding: 8px; border-radius: 6px; margin-bottom: 12px; border: 1px solid var(--purple-theme); box-shadow: 0 0 10px rgba(179, 136, 255, 0.3); }
-        
         .control-panel { background: #262626; padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #444; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
         .input-time { padding: 6px 10px; background: #121212; border: 1px solid #555; color: #fff; border-radius: 4px; font-family: monospace; font-size: 0.9rem; width: 110px; text-align: center; }
         .btn-action { background: #03dac6; color: #000; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.85rem; }
@@ -39,8 +36,6 @@
 </head>
 <body>
     <h2>🕒 天堂M 黑緒峰專屬王表</h2>
-    
-    <!-- 補增：中原標準時間即時秒數跑馬燈時鐘 -->
     <div id="standard-clock" class="time-marquee">🇹🇼 中原標準時間：⏳ 載入中...</div>
 
     <div class="control-panel">
@@ -95,9 +90,10 @@
         
         var bossConfig = [
             { name: "伊弗利特", cooldown: 120, isPurple: true }, { name: "賽尼斯的分身", cooldown: 180, isPurple: true }, { name: "死亡騎士", cooldown: 240, isPurple: true }, { name: "巨大飛龍", cooldown: 360, isPurple: true }, { name: "暗黑大將軍貝里斯", cooldown: 360, isPurple: true }, { name: "不死鳥", cooldown: 480, isPurple: true }, { name: "古代巨人", cooldown: 510, isPurple: true }, { name: "克特", cooldown: 600, isPurple: true },
-            { name: "881left飛龍", displayName: "881左飛龍", cooldown: 120, isPurple: false }, { name: "882right飛龍", displayName: "882右飛龍", cooldown: 120, isPurple: false }, { name: "綠王", cooldown: 120, isPurple: false }, { name: "紅王", cooldown: 120, isPurple: false }, { name: "四色", cooldown: 120, isPurple: false }, { name: "巨型蠕蟲(海底)", cooldown: 120, isPurple: false }, { name: "大黑長者", cooldown: 180, isPurple: false }, { name: "85飛龍", cooldown: 180, isPurple: false }, { name: "87飛龍", cooldown: 180, isPurple: false }, { name: "強盜頭目", cooldown: 180, isPurple: false }, { name: "樹精", cooldown: 180, isPurple: false }, { name: "巨大鱷魚", cooldown: 180, isPurple: false }, { name: "大腳瑪幽", cooldown: 180, isPurple: false }, { name: "變形怪首領", cooldown: 210, isPurple: false }, { name: "巨大守護螞蟻", cooldown: 210, isPurple: false }, { name: "奈克諾斯", cooldown: 240, isPurple: false }, { name: "蜘蛛", cooldown: 240, isPurple: false }, { name: "力卡溫", cooldown: 480, isPurple: false }, { name: "惡魔監視者", cooldown: 360, isPurple: false }, { name: "烏勒庫斯", cooldown: 360, isPurple: false }, { name: "卡司特王", cooldown: 450, isPurple: false }
+            { name: "881left飛龍", displayName: "881左飛龍", cooldown: 120, isPurple: false }, { name: "882right飛龍", displayName: "882右飛龍", cooldown: 120, isPurple: false }, { name: "綠王", cooldown: 120, isPurple: false }, { name: "紅王", cooldown: 120, isPurple: false }, { name: "四色", cooldown: 120, isPurple: false }, { name: "巨型蠕蟲(海底)", cooldown: 120, isPurple: false }, { name: "大黑長者", cooldown: 180, isPurple: false }, { name: "85飛龍", cooldown: 180, isPurple: false }, { name: "87飛野", displayName: "87飛龍", cooldown: 180, isPurple: false }, { name: "強盜頭目", cooldown: 180, isPurple: false }, { name: "樹精", cooldown: 180, isPurple: false }, { name: "巨大鱷魚", cooldown: 180, isPurple: false }, { name: "大腳瑪幽", cooldown: 180, isPurple: false }, { name: "變形怪首領", cooldown: 210, isPurple: false }, { name: "巨大守護螞蟻", cooldown: 210, isPurple: false }, { name: "奈克諾斯", cooldown: 240, isPurple: false }, { name: "蜘蛛", cooldown: 240, isPurple: false }, { name: "力卡溫", cooldown: 480, isPurple: false }, { name: "惡魔監視者", cooldown: 360, isPurple: false }, { name: "烏勒庫斯", cooldown: 360, isPurple: false }, { name: "卡司特王", cooldown: 450, isPurple: false }
         ];
         var bossState = [];
+        var isCloudLoaded = false; // 下載安全防護鎖：防止空白資料意外覆蓋雲端
 
         function initSystem() {
             bossState = [];
@@ -107,8 +103,6 @@
             }
             pullFromCloud();
             setInterval(pullFromCloud, 4000);
-            
-            // 啟動每秒中原標準時間即時更新
             setInterval(updateClock, 1000);
         }
         
@@ -128,11 +122,14 @@
                     if (xhr.status === 200 && xhr.responseText.trim() !== "") {
                         try {
                             var res = JSON.parse(xhr.responseText);
-                            // 關鍵格式防護：清洗並確保讀取出的資料完全具備所有必要的欄位規格
-                            if (res && res.length > 0 && typeof res[0].name !== 'undefined') { 
-                                bossState = res; 
+                            // 修正判定：只要下載的是有效陣列表單，就允許載入，解鎖讀取限制
+                            if (res && Array.isArray(res) && res.length > 0) { 
+                                bossState = res;
+                                isCloudLoaded = true; // 雲端成功下載，解除上傳封鎖
                             }
                         } catch(e) {}
+                    } else if (xhr.status === 404) {
+                        isCloudLoaded = true; // 若雲端完全無資料，亦視為解鎖狀態
                     }
                     renderTable();
                 }
@@ -140,6 +137,7 @@
             xhr.send();
         }
         function pushToCloud() {
+            if (!isCloudLoaded) return; // 下載未成功前，強制攔截上傳，避免覆蓋舊時間
             var xhr = new XMLHttpRequest();
             xhr.open("POST", syncUrl, true);
             xhr.setRequestHeader("Content-Type", "application/json");
@@ -204,6 +202,7 @@
         function resetToMaintenance() { 
             if (confirm('確定要全面清空重置雲端資料嗎？')) { 
                 for (var i = 0; i < bossState.length; i++) { var b = bossState[i]; b.nextSpawnTime = null; b.skipCount = 0; b.note = ""; }
+                isCloudLoaded = true; // 強制解鎖以執行重置
                 pushToCloud(); renderTable(); 
             } 
         }
