@@ -32,7 +32,6 @@
         .note-tag { font-size: 0.7rem; padding: 1px 4px; border-radius: 3px; font-weight: bold; margin-left: 4px; }
         .note-enemy { background: #520000; color: #ff8888; border: 1px solid #ff4444; }
         .note-broadcast { background: #002b52; color: #88ccff; border: 1px solid #3399ff; }
-        .loading-mask { text-align: center; color: var(--gold-theme); font-weight: bold; padding: 20px; font-size: 1.1rem; background: #262626; border-radius: 8px; border: 1px solid var(--gold-theme); margin: 20px 0; }
     </style>
 </head>
 <body>
@@ -84,14 +83,10 @@
     </div>
     
     <h3 class="purple-header">👑 傳說級物品掉落 BOSS 倒數</h3>
-    <div id="purple-boss-container" class="boss-list">
-        <div class="loading-mask">⏳ 正在與獨立雲端資料庫安全連線中，請稍後...</div>
-    </div>
+    <div id="purple-boss-container" class="boss-list"></div>
     
     <h3 class="normal-header">⚔️ 一般野外 BOSS 倒數</h3>
-    <div id="normal-boss-container" class="boss-list">
-        <div class="loading-mask">⏳ 正在與獨立雲端資料庫安全連線中，請稍後...</div>
-    </div>
+    <div id="normal-boss-container" class="boss-list"></div>
     <script>
         var syncUrl = "https://kvdb.io";
         
@@ -100,14 +95,26 @@
             { name: "881left飛龍", displayName: "881左飛龍", cooldown: 120, isPurple: false }, { name: "882right飛龍", displayName: "882右飛龍", cooldown: 120, isPurple: false }, { name: "綠王", cooldown: 120, isPurple: false }, { name: "紅王", cooldown: 120, isPurple: false }, { name: "四色", cooldown: 120, isPurple: false }, { name: "巨型蠕蟲(海底)", cooldown: 120, isPurple: false }, { name: "大黑長者", cooldown: 180, isPurple: false }, { name: "85飛龍", cooldown: 180, isPurple: false }, { name: "87飛龍", cooldown: 180, isPurple: false }, { name: "強盜頭目", cooldown: 180, isPurple: false }, { name: "樹精", cooldown: 180, isPurple: false }, { name: "巨大鱷魚", cooldown: 180, isPurple: false }, { name: "大腳瑪幽", cooldown: 180, isPurple: false }, { name: "變形怪首領", cooldown: 210, isPurple: false }, { name: "巨大守護螞蟻", cooldown: 210, isPurple: false }, { name: "奈克諾斯", cooldown: 240, isPurple: false }, { name: "蜘蛛", cooldown: 240, isPurple: false }, { name: "力卡溫", cooldown: 480, isPurple: false }, { name: "惡魔監視者", cooldown: 360, isPurple: false }, { name: "烏勒庫斯", cooldown: 360, isPurple: false }, { name: "卡司特王", cooldown: 450, isPurple: false }
         ];
         var bossState = [];
-        var isCloudLoaded = false; 
 
         function initSystem() {
+            // 第一重保障：立刻建立基本資料
             bossState = [];
             for (var i = 0; i < bossConfig.length; i++) {
                 var b = bossConfig[i];
                 bossState.push({ name: b.name, displayName: b.displayName || b.name, cooldown: b.cooldown, isPurple: b.isPurple, nextSpawnTime: null, skipCount: 0, note: "" });
             }
+            
+            // 第二重保障：重新整理時，0.001秒內優先抽取出本機快照，防止空白畫面
+            var localCache = localStorage.getItem('hms_boss_cache');
+            if (localCache) {
+                try {
+                    var parsed = JSON.parse(localCache);
+                    if (parsed && parsed.length > 0) { bossState = parsed; }
+                } catch(e) {}
+            }
+            renderTable();
+
+            // 第三重保障：去雲端同步盟友回報的最新戰況
             pullFromCloud();
             setInterval(pullFromCloud, 4000);
             setInterval(updateClock, 1000);
@@ -125,31 +132,29 @@
             var xhr = new XMLHttpRequest();
             xhr.open("GET", syncUrl, true);
             xhr.onreadystatechange = function() {
-                if (xhr.readyState === 4) {
-                    isCloudLoaded = true; // 破冰關鍵：只要伺服器回應了，一律強制開啟安全鎖解鎖網頁
-                    if (xhr.status === 200 && xhr.responseText.trim() !== "") {
-                        try {
-                            var res = JSON.parse(xhr.responseText);
-                            // 只要雲端下載的列表裡面有資料，立刻同步給手機
-                            if (res && Array.isArray(res) && res.length > 0 && res[0].name) { 
-                                bossState = res; 
-                            }
-                        } catch(e) {}
-                    }
-                    renderTable();
+                if (xhr.readyState === 4 && xhr.status === 200 && xhr.responseText.trim() !== "") {
+                    try {
+                        var res = JSON.parse(xhr.responseText);
+                        // 鐵血根治點：只要判定是陣列且有資料，立刻完全加載，不再加上錯誤的物件欄位限制
+                        if (res && Array.isArray(res) && res.length > 0) { 
+                            bossState = res;
+                            localStorage.setItem('hms_boss_cache', JSON.stringify(bossState));
+                            renderTable(); 
+                        }
+                    } catch(e) {}
                 }
             };
             xhr.send();
         }
         function pushToCloud() {
-            if (!isCloudLoaded) return; 
+            // 同步寫入本機與雲端
+            localStorage.setItem('hms_boss_cache', JSON.stringify(bossState));
             var xhr = new XMLHttpRequest();
             xhr.open("POST", syncUrl, true);
             xhr.setRequestHeader("Content-Type", "application/json");
             xhr.send(JSON.stringify(bossState));
         }
         function setMaintenanceTime() {
-            if (!isCloudLoaded) { alert('系統連線中，請稍後再試！'); return; }
             var inputEl = document.getElementById('maint-start-input'); var val = inputEl.value.trim().replace(/:/g, '');
             if (!/^\d{4}$/.test(val)) { alert('請輸入精確的 4 位數開機時間，例如 1030'); return; }
             var maintH = parseInt(val.substring(0, 2), 10), maintM = parseInt(val.substring(2, 4), 10);
@@ -165,7 +170,6 @@
             pushToCloud(); renderTable(); inputEl.value = ''; alert('開機首波時間已起算並立刻同步！');
         }
         function quickReportKill(bossName) {
-            if (!isCloudLoaded) return;
             var now = new Date(); var curH = now.getHours(), curM = now.getMinutes(), curS = now.getSeconds();
             var curTimeString = (curH < 10 ? '0' : '') + curH + ':' + (curM < 10 ? '0' : '') + curM + ':' + (curS < 10 ? '0' : '') + curS;
             var targetBoss = null;
@@ -199,7 +203,7 @@
             if (!targetBoss || targetBoss.nextSpawnTime === null) { alert('請先登記時間。'); return; }
             var parts = targetBoss.nextSpawnTime.split(':');
             if (parts.length >= 2) {
-                var h = parseInt(parts[0], 10), m = parseInt(parts[1], 10), s = parts[2] ? parseInt(parts[2], 10) : 0;
+                var h = parseInt(parts, 10), m = parseInt(parts, 10), s = parts ? parseInt(parts, 10) : 0;
                 var totalMinutes = h * 60 + m + (targetBoss.cooldown * offset);
                 totalMinutes = (totalMinutes % 1440 + 1440) % 1440;
                 var spawnH = Math.floor(totalMinutes / 60), spawnM = Math.floor(totalMinutes % 60);
@@ -208,9 +212,10 @@
             }
         }
         function resetToMaintenance() { 
-            if (confirm('確定要全面清空重置雲端資料嗎？')) { 
+            if (confirm('確定要全面清空重置雲端與手機快照嗎？')) { 
+                localStorage.removeItem('hms_boss_cache');
                 for (var i = 0; i < bossState.length; i++) { var b = bossState[i]; b.nextSpawnTime = null; b.skipCount = 0; b.note = ""; }
-                isCloudLoaded = true; pushToCloud(); renderTable(); 
+                pushToCloud(); renderTable(); 
             } 
         }
         function renderTable() {
