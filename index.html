@@ -111,7 +111,6 @@
         var syncUrl = "https://kvdb.io";
         
         var bossConfig = [
-            // 紫色傳說級區（已完全移除伊弗利特）
             { name: "賽尼斯的分身", cooldown: 180, isPurple: true }, 
             { name: "死亡騎士", cooldown: 240, isPurple: true }, 
             { name: "巨大飛龍", cooldown: 360, isPurple: true }, 
@@ -119,8 +118,6 @@
             { name: "不死鳥", cooldown: 480, isPurple: true }, 
             { name: "古代巨人", cooldown: 510, isPurple: true }, 
             { name: "克特", cooldown: 600, isPurple: true },
-            
-            // 一般野外區（伊弗利特v2 完美置頂）
             { name: "伊弗利特v2", displayName: "伊弗利特", cooldown: 120, isPurple: false }, 
             { name: "881left飛龍", displayName: "881左飛龍", cooldown: 120, isPurple: false }, 
             { name: "882right飛龍", displayName: "882右飛龍", cooldown: 120, isPurple: false }, 
@@ -267,7 +264,7 @@
             if (!targetBoss || targetBoss.nextSpawnTime === null) { alert('請先登記時間。'); return; }
             var parts = targetBoss.nextSpawnTime.split(':');
             if (parts.length >= 3) {
-                var h = parseInt(parts, 10), m = parseInt(parts, 10), s = parseInt(parts, 10);
+                var h = parseInt(parts[0], 10), m = parseInt(parts[1], 10), s = parseInt(parts[2], 10);
                 var totalMinutes = h * 60 + m + (targetBoss.cooldown * offset);
                 totalMinutes = (totalMinutes % 1440 + 1440) % 1440;
                 var spawnH = Math.floor(totalMinutes / 60), spawnM = Math.floor(totalMinutes % 60);
@@ -306,9 +303,9 @@
                 
                 if (b.nextSpawnTime) {
                     var rawParts = b.nextSpawnTime.split(':');
-                    var origH = parseInt(rawParts, 10);
-                    var origM = parseInt(rawParts, 10);
-                    var origSStr = rawParts ? rawParts.substring(0, 2) : "00"; 
+                    var origH = parseInt(rawParts[0], 10);
+                    var origM = parseInt(rawParts[1], 10);
+                    var origSStr = rawParts[2] ? rawParts[2].substring(0, 2) : "00"; 
                     var spawnTotalMinutes = origH * 60 + origM;
                     
                     var diff = curTotalMinutes - spawnTotalMinutes;
@@ -322,8 +319,6 @@
                             autoSkipCount = Math.floor((diff - 6) / b.cooldown) + 1;
                             var nextValidMinutes = spawnTotalMinutes + (autoSkipCount * b.cooldown);
                             var nextH = Math.floor((nextValidMinutes / 60) % 24);
-                            
-                            // 鋼鐵所死演算法：強制撈取純淨變數重新組裝，防止任何字串疊加！
                             timeDisplay = (nextH < 10 ? '0' : '') + nextH + ":" + (origM < 10 ? '0' : '') + origM + ":" + origSStr;
                         }
                     } else {
@@ -334,7 +329,6 @@
                 }
                 
                 var tagClass = b.isPurple ? 'tag-purple' : 'tag-normal', tagText = b.isPurple ? '紫' : '一般';
-                
                 var noteHtml = "";
                 if (b.note === "敵吃") { noteHtml = '<span class="note-tag note-enemy">敵吃</span>'; } 
                 else if (b.note === "廣播") { noteHtml = '<span class="note-tag note-broadcast">廣播</span>'; }
