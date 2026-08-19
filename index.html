@@ -50,7 +50,7 @@
     </style>
 </head>
 <body>
-    <h2>🕒 天堂M 黑緒峰專屬王表</h2>
+    <h2>🕒 天堂M 新篇章2.0 古魯丁專屬王表</h2>
     <div id="standard-clock" class="time-marquee">🇹🇼 中原標準時間 ➔ ⏳ 系統校時中...</div>
 
     <div class="id-panel">
@@ -237,7 +237,7 @@
             if (!targetBoss || targetBoss.nextSpawnTime === null) { alert('請先登記時間。'); return; }
             var parts = targetBoss.nextSpawnTime.split(':');
             if (parts.length >= 3) {
-                var h = parseInt(parts[0], 10), m = parseInt(parts[1], 10), s = parseInt(parts[2], 10);
+                var h = parseInt(parts, 10), m = parseInt(parts, 10), s = parseInt(parts, 10);
                 var totalMinutes = h * 60 + m + (targetBoss.cooldown * offset);
                 totalMinutes = (totalMinutes % 1440 + 1440) % 1440;
                 var spawnH = Math.floor(totalMinutes / 60), spawnM = Math.floor(totalMinutes % 60);
@@ -277,7 +277,7 @@
                 if (b.nextSpawnTime) {
                     timeDisplay = b.nextSpawnTime;
                     var parts = b.nextSpawnTime.split(':');
-                    var origH = parseInt(parts[0], 10), origM = parseInt(parts[1], 10), origS = parts[2];
+                    var origH = parseInt(parts, 10), origM = parseInt(parts, 10), origS = parts;
                     var spawnTotalMinutes = origH * 60 + origM;
                     
                     var diff = curTotalMinutes - spawnTotalMinutes;
