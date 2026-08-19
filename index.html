@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>天堂M王表-防死迴圈終極版</title>
+    <title>天堂M王表-極速流暢體</title>
     <style>
         :root { --bg-color: #121212; --card-bg: #1e1e1e; --gold-theme: #ffd700; --purple-theme: #b388ff; --text-color: #e0e0e0; --border-color: #333; }
         body { font-family: -apple-system, sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 15px; }
@@ -98,8 +98,8 @@
                 bossState.push({ name: b.name, displayName: b.displayName || b.name, cooldown: b.cooldown, isPurple: b.isPurple, nextSpawnTime: null, skipCount: 0, note: "" });
             }
             pullFromCloud();
+            // 修正點：每4秒單純下載同步一次，不再執行背景 autoCheckDeadLoop，徹底避免記憶體衝高當機
             setInterval(pullFromCloud, 4000);
-            setInterval(function(){ if(autoCheckAndPushTime()) { pushToCloud(); renderTable(); } }, 1000);
         }
         function pullFromCloud() {
             var xhr = new XMLHttpRequest();
@@ -129,13 +129,14 @@
             var maintH = parseInt(val.substring(0, 2), 10), maintM = parseInt(val.substring(2, 4), 10);
             if (maintH >= 24 || maintM >= 60) { alert('時間格式錯誤！'); return; }
             if (!confirm('確定要以 [ ' + (maintH < 10 ? '0' : '') + maintH + ':' + (maintM < 10 ? '0' : '') + maintM + ':00 ] 起算所有 BOSS 嗎？')) return;
+            
             for (var i = 0; i < bossState.length; i++) {
                 var totalMinutes = maintH * 60 + maintM + bossState[i].cooldown;
                 var spawnH = Math.floor((totalMinutes / 60) % 24), spawnM = Math.floor(totalMinutes % 60);
                 bossState[i].nextSpawnTime = (spawnH < 10 ? '0' : '') + spawnH + ':' + (spawnM < 10 ? '0' : '') + spawnM + ':00';
                 bossState[i].skipCount = 0; bossState[i].note = "";
             }
-            autoCheckAndPushTime(); pushToCloud(); renderTable(); inputEl.value = ''; alert('開機首波時間已起算並立刻同步！');
+            pushToCloud(); renderTable(); inputEl.value = ''; alert('開機首波時間已起算並立刻同步！');
         }
         function quickReportKill(bossName) {
             var now = new Date(); var curH = now.getHours(), curM = now.getMinutes(), curS = now.getSeconds();
@@ -163,36 +164,7 @@
             var totalMinutes = killH * 60 + killM + targetBoss.cooldown; var spawnH = Math.floor((totalMinutes / 60) % 24), spawnM = Math.floor(totalMinutes % 60);
             targetBoss.nextSpawnTime = (spawnH < 10 ? '0' : '') + spawnH + ':' + (spawnM < 10 ? '0' : '') + spawnM + ':' + (killS < 10 ? '0' : '') + killS;
             targetBoss.skipCount = 0; targetBoss.note = bossNote;
-            autoCheckAndPushTime(); pushToCloud(); renderTable();
-        }
-        function autoCheckAndPushTime() {
-            var updated = false; var now = new Date();
-            for (var i = 0; i < bossState.length; i++) {
-                var b = bossState[i];
-                if (b.nextSpawnTime !== null && b.nextSpawnTime !== '') {
-                    var parts = b.nextSpawnTime.split(':');
-                    if (parts.length >= 2) {
-                        var h = parseInt(parts[0], 10), m = parseInt(parts[1], 10), s = parts[2] ? parseInt(parts[2], 10) : 0;
-                        // 安全優化：移除 while 迴圈，改用單次 if 判斷搭配精準數學模數運算，100% 免疫網頁凍結閃退
-                        if (isTimePassed(h, m, s, now)) {
-                            var currentTotalMinutes = now.getHours() * 60 + now.getMinutes();
-                            var targetTotalMinutes = h * 60 + m;
-                            var diff = currentTotalMinutes - targetTotalMinutes;
-                            var periods = Math.floor(diff / b.cooldown) + 1;
-                            if (periods < 1) periods = 1;
-                            var nextTotal = targetTotalMinutes + (periods * b.cooldown);
-                            var spawnH = Math.floor((nextTotal / 60) % 24), spawnM = Math.floor(nextTotal % 60);
-                            b.nextSpawnTime = (spawnH < 10 ? '0' : '') + spawnH + ':' + (spawnM < 10 ? '0' : '') + spawnM + ':' + (s < 10 ? '0' : '') + s;
-                            b.note = ""; updated = true;
-                        }
-                    }
-                }
-            }
-            return updated;
-        }
-        function isTimePassed(targetH, targetM, targetS, nowObj) {
-            var curH = nowObj.getHours(), curM = nowObj.getMinutes(), curS = nowObj.getSeconds();
-            if (curH > targetH) return true; if (curH === targetH && curM > targetM) return true; if (curH === targetH && curM === targetM && curS >= targetS) return true; return false;
+            pushToCloud(); renderTable();
         }
         function modifyRound(bossName, offset) {
             var targetBoss = null;
@@ -204,12 +176,12 @@
                 var totalMinutes = h * 60 + m + (targetBoss.cooldown * offset); while (totalMinutes < 0) totalMinutes += 1440;
                 var spawnH = Math.floor((totalMinutes / 60) % 24), spawnM = Math.floor(totalMinutes % 60);
                 targetBoss.nextSpawnTime = (spawnH < 10 ? '0' : '') + spawnH + ':' + (spawnM < 10 ? '0' : '') + spawnM + ':' + (s < 10 ? '0' : '') + s;
-                targetBoss.note = ""; autoCheckAndPushTime(); pushToCloud(); renderTable();
+                targetBoss.note = ""; pushToCloud(); renderTable();
             }
         }
         function resetToMaintenance() { 
             if (confirm('確定要全面清空重置雲端資料嗎？')) { 
-                for (var i = 0; i < bossState.length; i++) { b = bossState[i]; b.nextSpawnTime = null; b.skipCount = 0; b.note = ""; }
+                for (var i = 0; i < bossState.length; i++) { var b = bossState[i]; b.nextSpawnTime = null; b.skipCount = 0; b.note = ""; }
                 pushToCloud(); renderTable(); 
             } 
         }
