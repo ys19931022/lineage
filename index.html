@@ -304,7 +304,7 @@
             <button class="boss-btn-purple" onclick="quickReportKill('克特')">克特</button>
         </div>
         <div class="btn-grid" id="normal-btns">
-            <button class="boss-btn-normal" onclick="quickReportKill('伊弗利特')" style="border: 1px solid #03dac6; background: #223333; color: #03dac6; font-weight: bold;">伊弗利特</button>
+            <button class="boss-btn-normal" onclick="quickReportKill('伊弗利特')">伊弗利特</button>
             <button class="boss-btn-normal" onclick="quickReportKill('881left飛龍')">881左飛龍</button>
             <button class="boss-btn-normal" onclick="quickReportKill('882right飛龍')">882右飛龍</button>
             <button class="boss-btn-normal" onclick="quickReportKill('綠王')">綠王</button>
@@ -864,23 +864,37 @@
                                     nowMs -
                                     spawnTimestamp;
 
-                                var overMin =
-                                    overMs /
-                                    (60 * 1000);
+                                // Boss 出現後保留 10 分鐘觀察 / 擊殺時間。
+                                // 超過這 10 分鐘，就自動輪空到下一輪。
+                                var graceMs =
+                                    10 * 60 * 1000;
 
-                                if (overMin <= 10) {
+                                if (overMs <= graceMs) {
 
-                                    // 原本邏輯：王在出現後 10 分鐘內
-                                    // 顯示原本時間並閃爍。
+                                    // 還在 10 分鐘寬限時間內
                                     isFlashing = true;
 
                                 } else {
 
+                                    // ★ 修正原本 10~11 分鐘之間的 BUG
+                                    //
+                                    // 原本：
+                                    // floor((overMin - 11) / cooldown) + 1
+                                    //
+                                    // 在 10:00 ~ 11:00 之間可能算出 0 輪，
+                                    // 導致畫面一直停在原本時間。
+                                    //
+                                    // 現在改成：
+                                    // 超過寬限時間後，直接計算應該輪空幾輪。
                                     var dynamicRounds =
-                                        Math.floor(
-                                            (overMin - 11) /
-                                            config.cooldown
-                                        ) + 1;
+                                        Math.ceil(
+                                            (overMs - graceMs) /
+                                            cdMs
+                                        );
+
+                                    if (dynamicRounds < 1) {
+                                        dynamicRounds = 1;
+                                    }
 
                                     spawnTimestamp =
                                         spawnTimestamp +
