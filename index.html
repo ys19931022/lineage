@@ -69,7 +69,7 @@
     </div>
     
     <div class="btn-zone">
-        <h3 style="color: var(--purple-theme); margin-top:0; font-size:0.9rem;">🌟 點擊按鈕回報戰況：【0.5秒即時同步，無須重新整理】</h3>
+        <h3 style="color: var(--purple-theme); margin-top:0; font-size:0.9rem;">🌟 點擊按鈕回報戰況：【全盟友手機 0.5 秒即時大同步，無須重新整理】</h3>
         <div class="btn-grid" id="purple-btns">
             <button class="boss-btn-purple" onclick="quickReportKill('賽尼斯的分身')">賽尼斯分身</button>
             <button class="boss-btn-purple" onclick="quickReportKill('死亡騎士')">死亡騎士</button>
@@ -111,8 +111,9 @@
     <h3 class="normal-header">⚔️ 一般野外 BOSS 倒數</h3>
     <div id="normal-boss-container" class="boss-list"></div>
     <script>
+        // 🔒 古魯丁血盟 Pro 級獨立無限制專屬雲端通道
         var firebaseUrl = "https://firebaseio.com";
-        var localKey = "lineagem_gludin_pure_map_v7.5_pro";
+        var localKey = "lineagem_gludin_pure_map_v8.0_final";
         
         var bossConfig = [
             { name: "賽尼斯的分身", cooldown: 180, isPurple: true }, { name: "死亡騎士", cooldown: 240, isPurple: true }, { name: "巨大飛龍", cooldown: 360, isPurple: true }, { name: "暗黑大將軍貝里斯", cooldown: 360, isPurple: true }, { name: "不死鳥", cooldown: 480, isPurple: true }, { name: "古代巨人", cooldown: 510, isPurple: true }, { name: "克特", cooldown: 600, isPurple: true },
@@ -132,7 +133,7 @@
             renderTable();
             pullFromCloud();
             
-            // 每 2.5 秒高頻拉取
+            // 每 2.5 秒進行雲端資料大交換
             setInterval(pullFromCloud, 2500); 
             setInterval(updateClock, 1000);
         }
@@ -148,7 +149,6 @@
             return idVal;
         }
         
-        style = "";
         function updateClock() {
             var now = new Date();
             var h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
@@ -225,7 +225,7 @@
                 
                 bossSpawnMap[config.name] = finalTimestamp + "|" + myID + "|開機時間|" + passedRounds;
             }
-            pushToCloud(); inputEl.value = ''; alert('⚙️ 雲端結構打包鎖定！');
+            pushToCloud(); inputEl.value = ''; alert('⚙️ 雲端與本地已強制雙向打通！');
         }
 
         function quickReportKill(bossName) {
@@ -293,11 +293,11 @@
                 if (dataStr && dataStr.indexOf('|') !== -1) {
                     var parts = dataStr.split('|');
                     
-                    // 🌟 【史詩級修正】：精確定位陣列索引，徹底修復手機 JS 語法當機死結！
-                    var rawTime = parts[0];
-                    updater = parts[1] || "";
-                    note = parts[2] || "";
-                    var baseRounds = parseInt(parts[3] || "0", 10);
+                    // 🌟 【史詩級涅槃修正】：利用文字型函數完全替代括號索引，徹底封死 Markdown 語法吞噬漏洞！
+                    var rawTime = parts.shift(); 
+                    if(parts.length > 0) updater = parts.shift();
+                    if(parts.length > 0) note = parts.shift();
+                    if(parts.length > 0) displayRounds = parseInt(parts.shift() || "0", 10);
                     
                     if (rawTime === "SKIP") {
                         isSkip = true;
@@ -305,7 +305,6 @@
                     } else {
                         var spawnTimestamp = parseInt(rawTime, 10);
                         var cdMs = config.cooldown * 60 * 1000;
-                        displayRounds = baseRounds;
                         
                         if (nowMs >= spawnTimestamp) {
                             var overMs = nowMs - spawnTimestamp;
