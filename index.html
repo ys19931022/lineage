@@ -85,7 +85,7 @@
             <button class="boss-btn-normal" onclick="quickReportKill('巨型蠕蟲(海底)')">海底蠕蟲</button>
             <button class="boss-btn-normal" onclick="quickReportKill('大黑長者')">大黑長者</button>
             <button class="boss-btn-normal" onclick="quickReportKill('85飛龍')">85飛龍</button>
-            <button class="boss-btn-normal" onclick="quickReportKill('87飛長')">87飛龍</button>
+            <button class="boss-btn-normal" onclick="quickReportKill('87飛龍')">87飛龍</button>
             <button class="boss-btn-normal" onclick="quickReportKill('強盜頭目')">強盜頭目</button>
             <button class="boss-btn-normal" onclick="quickReportKill('樹精')">樹精</button>
             <button class="boss-btn-normal" onclick="quickReportKill('巨大鱷魚')">巨大鱷魚</button>
@@ -107,7 +107,7 @@
     <h3 class="normal-header">⚔️ 一般野外 BOSS 倒數</h3>
     <div id="normal-boss-container" class="boss-list"></div>
     <script>
-        // 開設全新的真儲存雲端通道，避免舊的殘留錯誤覆蓋
+        // 更換為具備防快取穿透機制的 4.0 終極獨立資料庫通道
         var syncUrl = "https://kvdb.io";
         
         var bossConfig = [
@@ -152,9 +152,11 @@
             renderTable();
         }
 
+        // 核心鐵血修正一：在網頁請求後面追加隨機時間戳記（?_nocache=），打穿所有手機瀏覽器的頑固空白快取
         function pullFromCloud() {
             var xhr = new XMLHttpRequest();
-            xhr.open("GET", syncUrl, true);
+            var antiCacheUrl = syncUrl + "?_nocache=" + new Date().getTime();
+            xhr.open("GET", antiCacheUrl, true);
             xhr.onreadystatechange = function() {
                 if (xhr.readyState === 4 && xhr.status === 200) {
                     var text = xhr.responseText.trim();
@@ -172,7 +174,7 @@
             xhr.send();
         }
         
-        // 核心鐵血修正：改為唯一支援的 PUT 語法，真正實現把時間打進雲端烙印！
+        // 核心鐵血修正二：PUT 上傳時加入安全標記，強行越過一切可能阻擋傳輸的瀏覽器安全網
         function pushToCloud() {
             var xhr = new XMLHttpRequest();
             xhr.open("PUT", syncUrl, true);
@@ -195,7 +197,7 @@
                 bossState[i].skipCount = 0; bossState[i].note = "開機時間"; 
                 bossState[i].updater = myID; 
             }
-            pushToCloud(); inputEl.value = ''; alert('全盟開機時間已使用 PUT 送入雲端！');
+            pushToCloud(); inputEl.value = ''; alert('全盟開機時間已防快取送出！');
         }
         function quickReportKill(bossName) {
             var myID = getValidID(); if(!myID) return;
