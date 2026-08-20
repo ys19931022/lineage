@@ -445,75 +445,100 @@
         }
         
         function renderTable() {
-            var pContain = document.getElementById('purple-boss-container'), nContain = document.getElementById('normal-boss-container'); 
-            if(!pContain || !nContain) return; pContain.innerHTML = ''; nContain.innerHTML = '';
-            
-            var nowMs = new Date().getTime();
+            var pContain = document.getElementById('purple-boss-container'),
+                nContain = document.getElementById('normal-boss-container');
 
-            for (var i = 0; i < bossConfig.length; i++) {
-                var config = bossConfig[i];
-                var row = document.createElement('div'); row.className = 'boss-row'; 
-                
-                var timeDisplay = '--:--:--'; var isFlashing = false;
-                var updater = ""; var note = ""; var displayRounds = 0; var isSkip = false;
-                
-                var dataStr = bossSpawnMap[config.name];
-                if (dataStr && dataStr.indexOf('|') !== -1) {
-                    var parts = dataStr.split('|');
-                    var rawTime = parts[0];
-                    updater = parts[1] || "";
-                    note = parts[2] || "";
-                    var baseRounds = parseInt(parts[3] || "0", 10);
-                    
-                    if (rawTime === "SKIP") {
-                        isSkip = true;
-                        timeDisplay = '手動輪空';
-                    } else {
-                        var spawnTimestamp = parseInt(rawTime, 10);
-                        var cdMs = config.cooldown * 60 * 1000;
-                        displayRounds = baseRounds;
-                        
-                        if (nowMs >= spawnTimestamp) {
-                            var overMs = nowMs - spawnTimestamp;
-                            var overMin = overMs / (60 * 1000);
-                            if (overMin <= 10) {
-                                isFlashing = true;
-                            } else {
-                                var dynamicRounds = Math.floor((overMin - 11) / config.cooldown) + 1;
-                                spawnTimestamp = spawnTimestamp + (dynamicRounds * cdMs);
-                                displayRounds += dynamicRounds;
-                            }
-                        }
-                        
-                        var dObj = new Date(spawnTimestamp);
-                        var hStr = (dObj.getHours() < 10 ? '0' : '') + dObj.getHours();
-                        var mStr = (dObj.getMinutes() < 10 ? '0' : '') + dObj.getMinutes();
-                        var sStr = (dObj.getSeconds() < 10 ? '0' : '') + dObj.getSeconds();
-                        timeDisplay = hStr + ':' + mStr + ':' + sStr;
-                    }
+            pContain.innerHTML = '';
+            nContain.innerHTML = '';
+
+            // ------------------------------------------------------------
+            // 只改顯示順序：
+            // 依「下一次王出現時間」由近到遠排列。
+            // 紫王、一般王仍然完全分開。
+            // 尚未登記時間的王永遠排在最後。
+            // ------------------------------------------------------------
+            var sortedBossState = bossState.slice().sort(function(a, b) {
+
+                // 沒有時間的王排最後
+                if (a.nextSpawnTime === null && b.nextSpawnTime === null) {
+                    return 0;
                 }
-                
-                var tagClass = config.isPurple ? 'tag-purple' : 'tag-normal', tagText = config.isPurple ? '紫' : '一般';
-                var noteHtml = "";
-                if (note === "敵吃") { noteHtml = '<span class="note-tag note-enemy">敵吃</span>'; } 
-                else if (note === "廣播") { noteHtml = '<span class="note-tag note-broadcast">廣播</span>'; }
-                else if (note === "開機時間") { noteHtml = '<span class="note-tag note-maint">開機時間</span>'; }
-                
-                if (displayRounds > 0) { 
-                    noteHtml += '<span class="note-tag note-autoskip">自動輪空 ' + displayRounds + ' 輪</span>'; 
+
+                if (a.nextSpawnTime === null) {
+                    return 1;
                 }
-                
-                var userHtml = ""; if (updater) { userHtml = '<span class="user-tag">✍️ ' + updater + '</span>'; }
-                var timeColor = '#fff';
-                if (displayRounds > 0 || isSkip) { timeColor = '#ff4444'; } 
-                else if (config.isPurple && dataStr) { timeColor = 'var(--purple-theme)'; }
-                
-                var flashClassStr = isFlashing ? ' class="boss-time time-flash"' : ' class="boss-time"';
-                row.innerHTML = '<div class="boss-info"><div style="color:' + timeColor + '"' + flashClassStr + '>' + timeDisplay + '</div><div class="boss-name"><span class="status-tag ' + tagClass + '">' + tagText + '</span><strong>' + (config.displayName || config.name) + '</strong>' + noteHtml + userHtml + '</div></div><div class="boss-actions"><button class="btn-del" onclick="deleteSingleBoss(\'' + config.name + '\')">🗑️</button></div>';
-                
-                if (config.isPurple) { pContain.appendChild(row); } else { nContain.appendChild(row); }
-            }
+
+                if (b.nextSpawnTime === null) {
+                    return -1;
+                }
+
+                function timeToSeconds(timeString) {
+                    var parts = timeString.split(':');
+                    return (
+                        parseInt(parts[0], 10) * 3600 +
+                        parseInt(parts[1], 10) * 60 +
+                        parseInt(parts[2], 10)
+                    );
+                }
+
+                return (
+                    timeToSeconds(a.nextSpawnTime) -
+                    timeToSeconds(b.nextSpawnTime)
+                );
+            });
+
+            sortedBossState.forEach(function(b) {
+
+                var row = document.createElement('div');
+                row.className = 'boss-row';
+
+                var timeDisplay = b.nextSpawnTime
+                    ? b.nextSpawnTime
+                    : '--:--:--';
+
+                var tagClass = b.isPurple
+                    ? 'tag-purple'
+                    : 'tag-normal';
+
+                var tagText = b.isPurple
+                    ? '紫裝'
+                    : '一般';
+
+                row.innerHTML =
+                    '<div class="boss-info">' +
+                        '<div class="boss-time">' +
+                            timeDisplay +
+                        '</div>' +
+                        '<div class="boss-name">' +
+                            '<span class="status-tag ' +
+                                tagClass +
+                            '">' +
+                                tagText +
+                            '</span>' +
+                            '<strong>' +
+                                (b.displayName || b.name) +
+                            '</strong>' +
+                        '</div>' +
+                    '</div>' +
+
+                    '<div class="boss-actions">' +
+                        '<button class="btn-sm" onclick="modifyRound(\'' +
+                            b.name +
+                            '\', 1)">+1 輪</button>' +
+
+                        '<button class="btn-sm" onclick="modifyRound(\'' +
+                            b.name +
+                            '\', -1)">-1 輪</button>' +
+                    '</div>';
+
+                if (b.isPurple) {
+                    pContain.appendChild(row);
+                } else {
+                    nContain.appendChild(row);
+                }
+            });
         }
+
         window.onload = initSystem;
     </script>
 </body>
