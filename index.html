@@ -49,6 +49,7 @@
         .tag-normal { background: rgba(3, 218, 198, 0.15); color: #03dac6; border: 1px solid #03dac6; }
         
         .note-tag { font-size: 0.7rem; padding: 1px 4px; border-radius: 3px; font-weight: bold; margin-left: 4px; }
+        .note-manual { background: rgba(255, 193, 7, 0.15); color: #ffd54f; border: 1px solid #ffb300; }
         .note-enemy { background: #520000; color: #ff8888; border: 1px solid #ff4444; }
         .note-broadcast { background: #002b52; color: #88ccff; border: 1px solid #3399ff; }
         .note-maint { background: #1b5e20; color: #a5d6a7; border: 1px solid #4caf50; }
@@ -661,13 +662,43 @@
             else if (cleanInput.length === 6) { killH = parseInt(cleanInput.substring(0, 2), 10); killM = parseInt(cleanInput.substring(2, 4), 10); killS = parseInt(cleanInput.substring(4, 6), 10); }
             else { alert('格式錯誤！'); return; }
             
-            var noteInput = prompt('請選擇狀態標記：\n輸入 1 ➔ 敵吃\n輸入 2 ➔ 廣播\n輸入 3 ➔ 開機時間\n直接確定(留白) ➔ 正常計算', '');
-            var bossNote = ""; if (noteInput === "1") { bossNote = "敵吃"; } else if (noteInput === "2") { bossNote = "廣播"; } else if (noteInput === "3") { bossNote = "開機時間"; }
+            var noteInput = prompt(
+                '請選擇狀態／輸入手動備註原因：\n' +
+                '輸入 1 ➔ 敵吃\n' +
+                '輸入 2 ➔ 廣播\n' +
+                '輸入 3 ➔ 開機時間\n' +
+                '直接輸入文字 ➔ 使用你輸入的原因\n' +
+                '直接確定(留白) ➔ 正常計算',
+                ''
+            );
+
+            if (noteInput === null) return;
+
+            noteInput = noteInput.trim();
+
+            var bossNote = "";
+
+            if (noteInput === "1") {
+                bossNote = "敵吃";
+            } else if (noteInput === "2") {
+                bossNote = "廣播";
+            } else if (noteInput === "3") {
+                bossNote = "開機時間";
+            } else if (noteInput !== "") {
+                // 使用者直接輸入文字，就把文字當成手動備註原因。
+                bossNote = noteInput
+                    .replace(/\|/g, '／')
+                    .replace(/</g, '＜')
+                    .replace(/>/g, '＞');
+            }
 
             var targetDate = new Date(); targetDate.setHours(killH, killM, killS, 0);
             var nextSpawn = targetDate.getTime() + (getCooldown(bossName) * 60 * 1000);
             
-            bossSpawnMap[bossName] = nextSpawn + "|" + myID + "|" + bossNote + "|0";
+            bossSpawnMap[bossName] =
+                nextSpawn + "|" +
+                myID + "|" +
+                bossNote + "|0";
             pushToCloud();
         }
         
@@ -831,6 +862,7 @@
 
                     updater = parts[1] || '';
                     note = parts[2] || '';
+                    var manualReason = parts[4] || '';
 
                     var baseRounds =
                         parseInt(parts[3] || '0', 10);
@@ -972,6 +1004,12 @@
                 } else if (note === '開機時間') {
                     noteHtml =
                         '<span class="note-tag note-maint">開機時間</span>';
+                } else if (note) {
+                    // 不是 1/2/3 的文字，就直接當作手動輸入原因顯示。
+                    noteHtml =
+                        '<span class="note-tag note-manual">📝 ' +
+                        note.replace(/</g, '&lt;').replace(/>/g, '&gt;') +
+                        '</span>';
                 }
 
                 if (displayRounds > 0) {
