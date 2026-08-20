@@ -1174,6 +1174,116 @@
                     }
                 }
             });
+
+            // ========================================================
+            // ⏰ 固定王語音提醒
+            // 每個固定王的每個固定時段：
+            // ① 前 1 分鐘提醒一次
+            // ② 時間到提醒一次
+            // ========================================================
+            if (
+                typeof fixedBossConfig !== 'undefined' &&
+                Array.isArray(fixedBossConfig)
+            ) {
+                fixedBossConfig.forEach(function(fixed) {
+
+                    fixed.times.forEach(function(timeText) {
+
+                        var startText =
+                            timeText.split('-')[0];
+
+                        var timeParts =
+                            startText.split(':');
+
+                        var hour =
+                            parseInt(timeParts[0], 10);
+
+                        var minute =
+                            parseInt(timeParts[1], 10);
+
+                        if (
+                            isNaN(hour) ||
+                            isNaN(minute)
+                        ) return;
+
+                        // 建立今天這個固定王時段的時間
+                        var target =
+                            new Date();
+
+                        target.setHours(
+                            hour,
+                            minute,
+                            0,
+                            0
+                        );
+
+                        // 如果今天已經過了，就用明天
+                        if (target.getTime() < nowMs) {
+                            target.setDate(
+                                target.getDate() + 1
+                            );
+                        }
+
+                        var targetMs =
+                            target.getTime();
+
+                        var cycleKey =
+                            'FIXED_' +
+                            fixed.name + '_' +
+                            timeText + '_' +
+                            targetMs;
+
+                        // 前 1 分鐘
+                        if (
+                            !voiceAlertState[
+                                cycleKey + '_before'
+                            ]
+                        ) {
+                            var beforeMs =
+                                targetMs - nowMs;
+
+                            if (
+                                beforeMs > 0 &&
+                                beforeMs <= 60000
+                            ) {
+                                voiceAlertState[
+                                    cycleKey + '_before'
+                                ] = true;
+
+                                speakLineageBossAlert(
+                                    fixed.name,
+                                    'before'
+                                );
+                            }
+                        }
+
+                        // 時間到
+                        if (
+                            !voiceAlertState[
+                                cycleKey + '_spawn'
+                            ]
+                        ) {
+                            var afterMs =
+                                nowMs - targetMs;
+
+                            if (
+                                afterMs >= 0 &&
+                                afterMs < 60000
+                            ) {
+                                voiceAlertState[
+                                    cycleKey + '_spawn'
+                                ] = true;
+
+                                speakLineageBossAlert(
+                                    fixed.name,
+                                    'spawn'
+                                );
+                            }
+                        }
+                    });
+                });
+            }
+
         }
 
         // 每秒檢查一次，但只有在語音開關 ON 時才會播放。
