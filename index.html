@@ -35,6 +35,42 @@
         .fixed-schedule { font-size: 0.8rem; color: #ccc; line-height: 1.5; }
         .fixed-soon { color: #ff5252; font-weight: bold; }
         .fixed-countdown { font-size: 0.78rem; color: #aaa; font-family: monospace; white-space: nowrap; }
+        .voice-panel {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #262626;
+            padding: 7px 10px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #444;
+        }
+        .voice-label {
+            font-size: 0.82rem;
+            color: #ddd;
+        }
+        .voice-toggle {
+            min-width: 58px;
+            padding: 5px 10px;
+            border-radius: 999px;
+            border: 1px solid #555;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.75rem;
+        }
+        .voice-toggle.off {
+            background: #333;
+            color: #aaa;
+        }
+        .voice-toggle.on {
+            background: #1b8f5a;
+            color: #fff;
+            border-color: #35c77b;
+        }
+        #voice-status {
+            font-size: 0.75rem;
+            color: #aaa;
+        }
         .boss-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
         .boss-row { display: flex; align-items: center; justify-content: space-between; background: var(--card-bg); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); }
         /* 滑鼠移入整列高亮，方便辨認這一列對應的清空按鈕 */
@@ -280,6 +316,19 @@
                 font-size: 0.72rem;
             }
 
+            .voice-panel {
+                padding: 6px 8px;
+                gap: 6px;
+                margin-bottom: 8px;
+            }
+            .voice-label { font-size: 0.74rem; }
+            .voice-toggle {
+                min-width: 52px;
+                padding: 5px 8px;
+                font-size: 0.7rem;
+            }
+            #voice-status { font-size: 0.68rem; }
+
             .fixed-header,
             .purple-header,
             .normal-header {
@@ -368,6 +417,11 @@
     </div>
 
     <h2>🕒 天堂M 新篇章2.0 古魯丁專屬王表</h2>
+    <div class="voice-panel">
+        <span class="voice-label">🔊 語音提醒</span>
+        <button id="voice-toggle-btn" class="voice-toggle off" onclick="toggleVoiceAlerts()">OFF</button>
+        <span id="voice-status">關閉</span>
+    </div>
     <div id="standard-clock" class="time-marquee">🇹🇼 中原標準時間 ➔ ⏳ 系統校時中...</div>
 
     <div class="id-panel">
@@ -946,6 +1000,193 @@
                 container.appendChild(row);
             });
         }
+
+
+        // ============================================================
+        // 🔊 語音提醒（只新增這一區）
+        // 每隻王每一輪：
+        // ① 出王前 1 分鐘提醒一次
+        // ② 出王時間到提醒一次
+        // 語音開關只儲存在「本台裝置」，不影響其他盟友。
+        // ============================================================
+        var voiceAlertsEnabled =
+            localStorage.getItem('lineageVoiceAlerts') === '1';
+
+        var voiceAlertState = {};
+
+        function updateVoiceToggleUI() {
+            var btn = document.getElementById('voice-toggle-btn');
+            var status = document.getElementById('voice-status');
+
+            if (!btn || !status) return;
+
+            if (voiceAlertsEnabled) {
+                btn.textContent = 'ON';
+                btn.className = 'voice-toggle on';
+                status.textContent = '已開啟';
+            } else {
+                btn.textContent = 'OFF';
+                btn.className = 'voice-toggle off';
+                status.textContent = '關閉';
+            }
+        }
+
+        function toggleVoiceAlerts() {
+            voiceAlertsEnabled = !voiceAlertsEnabled;
+
+            localStorage.setItem(
+                'lineageVoiceAlerts',
+                voiceAlertsEnabled ? '1' : '0'
+            );
+
+            if (voiceAlertsEnabled) {
+                // Chrome 需要使用者互動來解除語音播放限制。
+                if (window.speechSynthesis) {
+                    window.speechSynthesis.cancel();
+
+                    var testUtterance =
+                        new SpeechSynthesisUtterance('語音提醒已開啟');
+
+                    testUtterance.lang = 'zh-TW';
+                    testUtterance.rate = 1.05;
+                    testUtterance.pitch = 1;
+
+                    window.speechSynthesis.speak(testUtterance);
+                }
+            } else {
+                if (window.speechSynthesis) {
+                    window.speechSynthesis.cancel();
+                }
+            }
+
+            updateVoiceToggleUI();
+        }
+
+        function speakLineageBossAlert(bossName, type) {
+            if (
+                !voiceAlertsEnabled ||
+                !window.speechSynthesis
+            ) return;
+
+            var message =
+                type === 'before'
+                    ? '注意，' + bossName + ' 一分鐘後出王！'
+                    : '注意，' + bossName + ' 出王了！';
+
+            window.speechSynthesis.cancel();
+
+            var utterance =
+                new SpeechSynthesisUtterance(message);
+
+            utterance.lang = 'zh-TW';
+            utterance.rate = 1.05;
+            utterance.pitch = 1;
+
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function checkLineageBossVoiceAlerts() {
+            if (!voiceAlertsEnabled) return;
+
+            var nowMs = Date.now();
+
+            if (
+                typeof bossConfig === 'undefined' ||
+                typeof bossSpawnMap === 'undefined'
+            ) return;
+
+            bossConfig.forEach(function(config) {
+
+                var dataStr =
+                    bossSpawnMap[config.name];
+
+                if (
+                    !dataStr ||
+                    dataStr.indexOf('|') === -1
+                ) return;
+
+                var parts =
+                    dataStr.split('|');
+
+                var rawTime = parts[0];
+
+                if (
+                    rawTime === 'SKIP' ||
+                    !rawTime
+                ) return;
+
+                var spawnTimestamp =
+                    parseInt(rawTime, 10);
+
+                if (isNaN(spawnTimestamp)) return;
+
+                var cycleKey =
+                    config.name + '_' +
+                    spawnTimestamp;
+
+                // 出王前 1 分鐘
+                if (
+                    !voiceAlertState[
+                        cycleKey + '_before'
+                    ]
+                ) {
+                    var beforeMs =
+                        spawnTimestamp - nowMs;
+
+                    if (
+                        beforeMs > 0 &&
+                        beforeMs <= 60000
+                    ) {
+                        voiceAlertState[
+                            cycleKey + '_before'
+                        ] = true;
+
+                        speakLineageBossAlert(
+                            config.displayName ||
+                            config.name,
+                            'before'
+                        );
+                    }
+                }
+
+                // 出王時間到
+                if (
+                    !voiceAlertState[
+                        cycleKey + '_spawn'
+                    ]
+                ) {
+                    var afterMs =
+                        nowMs - spawnTimestamp;
+
+                    if (
+                        afterMs >= 0 &&
+                        afterMs < 60000
+                    ) {
+                        voiceAlertState[
+                            cycleKey + '_spawn'
+                        ] = true;
+
+                        speakLineageBossAlert(
+                            config.displayName ||
+                            config.name,
+                            'spawn'
+                        );
+                    }
+                }
+            });
+        }
+
+        // 每秒檢查一次，但只有在語音開關 ON 時才會播放。
+        setInterval(
+            checkLineageBossVoiceAlerts,
+            1000
+        );
+
+        // 初始化本機語音開關狀態。
+        setTimeout(
+            updateVoiceToggleUI,
+            0
+        );
 
         function renderTable() {
             var pContain = document.getElementById('purple-boss-container'),
