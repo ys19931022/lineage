@@ -54,6 +54,222 @@
         .note-maint { background: #1b5e20; color: #a5d6a7; border: 1px solid #4caf50; }
         .note-autoskip { background: #4a0007; color: #ff8a80; border: 1px solid #ff5252; font-weight: bold; padding: 2px 5px; }
 
+
+        /* ============================================================
+           📱 手機版優化
+           不改資料、不改同步、不改 Boss 邏輯，只改善排版。
+           ============================================================ */
+        @media (max-width: 600px) {
+
+            body {
+                padding: 8px;
+                overflow-x: hidden;
+            }
+
+            h2 {
+                font-size: 1.05rem;
+                margin: 6px 0 8px;
+            }
+
+            h3 {
+                font-size: 0.95rem;
+            }
+
+            .time-marquee {
+                font-size: 0.95rem;
+                padding: 7px 5px;
+                margin-bottom: 8px;
+            }
+
+            .id-panel {
+                padding: 9px;
+                gap: 7px;
+                margin-bottom: 8px;
+            }
+
+            .id-panel > span {
+                font-size: 0.78rem !important;
+                white-space: nowrap;
+            }
+
+            .input-id {
+                min-width: 0;
+                padding: 7px 9px;
+                font-size: 0.85rem;
+            }
+
+            .control-panel {
+                padding: 9px;
+                gap: 8px;
+                margin-bottom: 10px;
+            }
+
+            .maint-zone {
+                width: 100%;
+                gap: 6px;
+            }
+
+            .maint-zone > span {
+                width: 100%;
+                font-size: 0.78rem !important;
+            }
+
+            .input-time {
+                flex: 1;
+                min-width: 0;
+                width: auto;
+                font-size: 0.82rem;
+                padding: 7px 6px;
+            }
+
+            .btn-action {
+                flex: 1;
+                min-width: 0;
+                padding: 7px 5px;
+                font-size: 0.75rem;
+                white-space: nowrap;
+            }
+
+            .btn-reset {
+                width: 100%;
+                padding: 7px 8px;
+                font-size: 0.78rem;
+            }
+
+            .btn-zone {
+                padding: 9px;
+                margin-bottom: 14px;
+            }
+
+            .btn-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 5px;
+                margin-bottom: 9px;
+            }
+
+            .boss-btn-purple,
+            .boss-btn-normal {
+                min-width: 0;
+                padding: 8px 3px;
+                font-size: 0.72rem;
+                white-space: normal;
+                line-height: 1.2;
+            }
+
+            /* ★ 王卡片：時間 / 資訊 / 刪除按鈕不再互相擠壓 */
+            .boss-row {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) auto;
+                align-items: center;
+                gap: 6px;
+                padding: 9px 8px;
+            }
+
+            .boss-info {
+                display: grid;
+                grid-template-columns: 82px minmax(0, 1fr);
+                align-items: center;
+                gap: 6px;
+                min-width: 0;
+            }
+
+            .boss-time {
+                min-width: 0;
+                font-size: 0.98rem;
+                line-height: 1.15;
+                white-space: nowrap;
+            }
+
+            .boss-name {
+                min-width: 0;
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 3px;
+                line-height: 1.35;
+                overflow-wrap: anywhere;
+            }
+
+            .boss-name strong {
+                font-size: 0.88rem;
+                max-width: 100%;
+            }
+
+            .status-tag,
+            .note-tag {
+                font-size: 0.63rem;
+                padding: 1px 3px;
+                margin: 0;
+                white-space: nowrap;
+            }
+
+            .user-tag {
+                font-size: 0.62rem;
+                margin: 0;
+                padding: 1px 4px;
+                white-space: nowrap;
+            }
+
+            .boss-actions {
+                flex-shrink: 0;
+                gap: 0;
+            }
+
+            .btn-del {
+                width: 38px;
+                height: 38px;
+                padding: 0;
+                font-size: 0.95rem;
+            }
+
+            .boss-list {
+                gap: 6px;
+                margin-bottom: 15px;
+            }
+
+            /* ★ 固定王手機版 */
+            .fixed-row {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr);
+                gap: 4px;
+                padding: 8px 9px;
+            }
+
+            .fixed-info {
+                display: grid;
+                grid-template-columns: 70px minmax(0, 1fr);
+                gap: 5px;
+                align-items: center;
+            }
+
+            .fixed-next {
+                min-width: 0;
+                font-size: 0.92rem;
+            }
+
+            .fixed-name {
+                min-width: 0;
+                font-size: 0.86rem;
+            }
+
+            .fixed-schedule {
+                grid-column: 2;
+                font-size: 0.7rem;
+                overflow-wrap: anywhere;
+            }
+
+            .fixed-countdown {
+                text-align: right;
+                font-size: 0.72rem;
+            }
+
+            .fixed-header,
+            .purple-header,
+            .normal-header {
+                padding-bottom: 4px;
+            }
+        }
+
         @keyframes flash-warning { 0% { color: #ffd700; opacity: 1; } 50% { color: #ff5722; opacity: 0.4; } 100% { color: #ffd700; opacity: 1; } }
         .time-flash { animation: flash-warning 1s infinite; font-weight: 900; text-shadow: 0 0 5px rgba(255,87,34,0.6); }
     </style>
