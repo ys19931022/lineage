@@ -1017,6 +1017,10 @@
         var voiceAlertsEnabled =
             localStorage.getItem('lineageVoiceAlerts') === '1';
 
+        // Chrome 重新載入頁面後，語音播放需要新的使用者互動。
+        // 只要使用者在頁面上點一下，就重新解鎖語音。
+        var voiceSpeechUnlocked = false;
+
         var voiceAlertState = {};
 
         function updateVoiceToggleUI() {
@@ -1028,7 +1032,7 @@
             if (voiceAlertsEnabled) {
                 btn.textContent = 'ON';
                 btn.className = 'voice-toggle on';
-                status.textContent = '已開啟（若無聲音請再按一次）';
+                status.textContent = '已開啟（點一下頁面啟用語音）';
             } else {
                 btn.textContent = 'OFF';
                 btn.className = 'voice-toggle off';
@@ -1063,6 +1067,7 @@
             }
 
             voiceAlertsEnabled = true;
+            voiceSpeechUnlocked = true;
 
             localStorage.setItem(
                 'lineageVoiceAlerts',
@@ -1085,24 +1090,34 @@
         function speakLineageBossAlert(bossName, type) {
             if (
                 !voiceAlertsEnabled ||
+                !voiceSpeechUnlocked ||
                 !window.speechSynthesis
-            ) return;
+            ) {
+                return false;
+            }
 
             var message =
                 type === 'before'
                     ? '注意，' + bossName + ' 一分鐘後出王！'
                     : '注意，' + bossName + ' 出王了！';
 
-            var utterance =
-                new SpeechSynthesisUtterance(message);
+            try {
+                // Chrome 偶爾會讓 speechSynthesis 卡在 paused 狀態。
+                window.speechSynthesis.resume();
 
-            utterance.lang = 'zh-TW';
-            utterance.rate = 1.05;
-            utterance.pitch = 1;
+                var utterance =
+                    new SpeechSynthesisUtterance(message);
 
-            // 不在這裡 cancel，避免同一秒有兩隻王時，
-            // 後一個提醒把前一個提醒取消。
-            window.speechSynthesis.speak(utterance);
+                utterance.lang = 'zh-TW';
+                utterance.rate = 1.05;
+                utterance.pitch = 1;
+
+                window.speechSynthesis.speak(utterance);
+
+                return true;
+            } catch (e) {
+                return false;
+            }
         }
 
         function checkLineageBossVoiceAlerts() {
@@ -1157,15 +1172,15 @@
                         beforeMs > 0 &&
                         beforeMs <= 60000
                     ) {
-                        voiceAlertState[
-                            cycleKey + '_before'
-                        ] = true;
-
-                        speakLineageBossAlert(
+                        if (speakLineageBossAlert(
                             config.displayName ||
                             config.name,
                             'before'
-                        );
+                        )) {
+                            voiceAlertState[
+                                cycleKey + '_before'
+                            ] = true;
+                        }
                     }
                 }
 
@@ -1182,15 +1197,15 @@
                         afterMs >= 0 &&
                         afterMs < 60000
                     ) {
-                        voiceAlertState[
-                            cycleKey + '_spawn'
-                        ] = true;
-
-                        speakLineageBossAlert(
+                        if (speakLineageBossAlert(
                             config.displayName ||
                             config.name,
                             'spawn'
-                        );
+                        )) {
+                            voiceAlertState[
+                                cycleKey + '_spawn'
+                            ] = true;
+                        }
                     }
                 }
             });
@@ -1276,14 +1291,14 @@
                                 beforeMs > 0 &&
                                 beforeMs <= 60000
                             ) {
-                                voiceAlertState[
-                                    cycleKey + '_before'
-                                ] = true;
-
-                                speakLineageBossAlert(
+                                if (speakLineageBossAlert(
                                     fixed.name,
                                     'before'
-                                );
+                                )) {
+                                    voiceAlertState[
+                                        cycleKey + '_before'
+                                    ] = true;
+                                }
                             }
                         }
 
@@ -1300,14 +1315,14 @@
                                 afterMs >= 0 &&
                                 afterMs < 60000
                             ) {
-                                voiceAlertState[
-                                    cycleKey + '_spawn'
-                                ] = true;
-
-                                speakLineageBossAlert(
+                                if (speakLineageBossAlert(
                                     fixed.name,
                                     'spawn'
-                                );
+                                )) {
+                                    voiceAlertState[
+                                        cycleKey + '_spawn'
+                                    ] = true;
+                                }
                             }
                         }
                     });
@@ -1315,6 +1330,18 @@
             }
 
         }
+
+        // 如果使用者之前選擇 ON，Chrome 重新載入後需要新的
+        // user gesture；第一次點擊頁面就重新解鎖。
+        document.addEventListener('click', function() {
+            if (!voiceAlertsEnabled || voiceSpeechUnlocked) return;
+
+            voiceSpeechUnlocked = true;
+
+            if (window.speechSynthesis) {
+                window.speechSynthesis.resume();
+            }
+        }, { once: true });
 
         // 每秒檢查一次，但只有在語音開關 ON 時才會播放。
         setInterval(
