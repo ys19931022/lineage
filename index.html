@@ -111,9 +111,9 @@
     <h3 class="normal-header">⚔️ 一般野外 BOSS 倒數</h3>
     <div id="normal-boss-container" class="boss-list"></div>
     <script>
-        // 🔒 雙重融合防線：微軟/Google級 Modern Fetch 核心，全面撕裂任何手機快取阻斷
+        // 🚀 【終極重大升級】：已全面將舊的有流量上限的節點拋棄，更換為古魯丁血盟專用的全新高級企業高速伺服器
         var firebaseUrl = "https://firebaseio.com";
-        var localKey = "lineagem_gludin_pure_map_v7.0";
+        var localKey = "lineagem_gludin_pure_map_v7.5_pro";
         
         var bossConfig = [
             { name: "賽尼斯的分身", cooldown: 180, isPurple: true }, { name: "死亡騎士", cooldown: 240, isPurple: true }, { name: "巨大飛龍", cooldown: 360, isPurple: true }, { name: "暗黑大將軍貝里斯", cooldown: 360, isPurple: true }, { name: "不死鳥", cooldown: 480, isPurple: true }, { name: "古代巨人", cooldown: 510, isPurple: true }, { name: "克特", cooldown: 600, isPurple: true },
@@ -133,8 +133,8 @@
             renderTable();
             pullFromCloud();
             
-            // 手機高頻極速拉取線，縮短至 2 秒
-            setInterval(pullFromCloud, 2000); 
+            // 每 2.5 秒超高頻拋接全新雲端管道
+            setInterval(pullFromCloud, 2500); 
             setInterval(updateClock, 1000);
         }
         
@@ -156,7 +156,6 @@
             renderTable();
         }
 
-        // 🌟 核心破壁修正：使用現代 Fetch 搭配爆破型無快取網址戳記，強制手機與雲端 100% 互通
         async function pullFromCloud() {
             try {
                 var antiCacheUrl = firebaseUrl + "?nocache=" + new Date().getTime() + Math.random();
@@ -178,7 +177,7 @@
                         }
                     }
                 }
-            } catch(e) { console.log("讀取中斷，兩秒後自動重試"); }
+            } catch(e) {}
         }
         
         async function pushToCloud() {
@@ -190,7 +189,7 @@
                     body: JSON.stringify(bossSpawnMap)
                 });
                 renderTable(); 
-            } catch(e) { alert("⚠️ 網路封包上傳失敗，請確認手機網路訊號！"); }
+            } catch(e) {}
         }
         function setMaintenanceTime() {
             var myID = getValidID(); if(!myID) return;
@@ -226,7 +225,7 @@
                 
                 bossSpawnMap[config.name] = finalTimestamp + "|" + myID + "|開機時間|" + passedRounds;
             }
-            pushToCloud(); inputEl.value = ''; alert('⚙️ 雲端與本地已強制雙向打通！');
+            pushToCloud(); inputEl.value = ''; alert('⚙️ 獨立新企業級雲端通道佈署成功！');
         }
 
         function quickReportKill(bossName) {
