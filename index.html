@@ -26,6 +26,14 @@
         .boss-btn-purple { background: linear-gradient(135deg, #4a148c, #311b92); color: #fff; border: 2px solid var(--purple-theme); padding: 10px 5px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85rem; text-shadow: 1px 1px 2px #000; width: 100%; }
         .boss-btn-normal { background: #2c2c2c; color: #e0e0e0; border: 1px solid #555; padding: 8px 5px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; width: 100%; }
         
+        .fixed-header { color: #ffb300; border-bottom: 2px solid #ffb300; padding-bottom: 5px; }
+        .fixed-row { display: flex; align-items: center; justify-content: space-between; background: var(--card-bg); padding: 9px 12px; border-radius: 6px; border: 1px solid #5a4a22; }
+        .fixed-info { display: flex; align-items: center; gap: 12px; min-width: 0; }
+        .fixed-next { font-size: 1.1rem; font-weight: bold; font-family: monospace; min-width: 85px; color: #ffcf33; text-align: left; }
+        .fixed-name { font-size: 0.9rem; font-weight: bold; min-width: 115px; }
+        .fixed-schedule { font-size: 0.8rem; color: #ccc; line-height: 1.5; }
+        .fixed-soon { color: #ff5252; font-weight: bold; }
+        .fixed-countdown { font-size: 0.78rem; color: #aaa; font-family: monospace; white-space: nowrap; }
         .boss-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
         .boss-row { display: flex; align-items: center; justify-content: space-between; background: var(--card-bg); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); }
         .boss-info { display: flex; align-items: center; gap: 10px; }
@@ -110,6 +118,9 @@
     
     <h3 class="normal-header">⚔️ 一般野外 BOSS 倒數</h3>
     <div id="normal-boss-container" class="boss-list"></div>
+
+    <h3 class="fixed-header">⏰ 固定王時間表</h3>
+    <div id="fixed-boss-container" class="boss-list"></div>
     <script>
         // 🚀 【終極重大升級】：已全面將舊的有流量上限的節點拋棄，更換為古魯丁血盟專用的全新高級企業高速伺服器
         // ☁️【全盟同步設定】
@@ -123,6 +134,23 @@
             { name: "賽尼斯的分身", cooldown: 180, isPurple: true }, { name: "死亡騎士", cooldown: 240, isPurple: true }, { name: "巨大飛龍", cooldown: 360, isPurple: true }, { name: "暗黑大將軍貝里斯", cooldown: 360, isPurple: true }, { name: "不死鳥", cooldown: 480, isPurple: true }, { name: "古代巨人", cooldown: 510, isPurple: true }, { name: "克特", cooldown: 600, isPurple: true },
             { name: "伊弗利特", cooldown: 120, isPurple: false }, { name: "881left飛龍", displayName: "881左飛龍", cooldown: 120, isPurple: false }, { name: "882right飛龍", displayName: "882右飛龍", cooldown: 120, isPurple: false }, { name: "綠王", cooldown: 120, isPurple: false }, { name: "紅王", cooldown: 120, isPurple: false }, { name: "四色", cooldown: 120, isPurple: false }, { name: "巨型蠕蟲(海底)", cooldown: 120, isPurple: false }, { name: "大黑長者", cooldown: 180, isPurple: false }, { name: "85飛龍", cooldown: 180, isPurple: false }, { name: "87飛龍", cooldown: 180, isPurple: false }, { name: "強盜頭目", cooldown: 180, isPurple: false }, { name: "樹精", cooldown: 180, isPurple: false }, { name: "巨大鱷魚", cooldown: 180, isPurple: false }, { name: "大腳瑪幽", cooldown: 180, isPurple: false }, { name: "變形怪首領", cooldown: 210, isPurple: false }, { name: "巨大守護螞蟻", cooldown: 210, isPurple: false }, { name: "奈克諾斯", cooldown: 240, isPurple: false }, { name: "蜘蛛", cooldown: 240, isPurple: false }, { name: "力卡溫", cooldown: 480, isPurple: false }, { name: "惡魔監視者", cooldown: 360, isPurple: false }, { name: "烏勒庫斯", cooldown: 360, isPurple: false }, { name: "卡司特王", cooldown: 450, isPurple: false }
         ];
+
+        // ⏰ 固定王：依你提供的固定時間表。
+        var fixedBossConfig = [
+            { name: "巴風特", times: ["14:00-14:30", "20:00-20:30"] },
+            { name: "奇岩地監1F", times: ["00:00", "06:00", "12:00", "18:00"] },
+            { name: "奇岩地監2F", times: ["07:00", "14:00", "21:00"] },
+            { name: "暗黑地監4F", times: ["18:00"] },
+            { name: "雪碧三王", times: ["19:15"] },
+            { name: "奇岩地監3F", times: ["20:15"] },
+            { name: "奇岩地監4F", times: ["21:15"] },
+            { name: "惡魔", times: ["22:00"] },
+            { name: "杜佩爾奈諾", times: ["22:00"] },
+            { name: "異界的惡魔", times: ["23:00"] },
+            { name: "烈焰死騎", times: ["23:30"] },
+            { name: "暗黑地監4F", times: ["00:00"] }
+        ];
+
         
         var bossSpawnMap = {}; 
 
@@ -135,6 +163,7 @@
             if(savedID) { document.getElementById('user-id-input').value = savedID; }
             
             renderTable();
+            renderFixedBosses();
             pullFromCloud();
             startRealtimeSync();
             
@@ -159,6 +188,7 @@
             var h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
             document.getElementById('standard-clock').innerText = "🇹🇼 中原標準時間 ➔ " + (h<10?'0':'')+h + ':' + (m<10?'0':'')+m + ':' + (s<10?'0':'')+s;
             renderTable();
+            renderFixedBosses();
         }
 
         // ============================================================
@@ -444,6 +474,103 @@
             } 
         }
         
+        function renderFixedBosses() {
+            var container = document.getElementById('fixed-boss-container');
+            if (!container) return;
+
+            container.innerHTML = '';
+
+            var now = new Date();
+            var nowMs = now.getTime();
+            var fixedRows = [];
+
+            function getNextOccurrence(timeText) {
+                var startText = timeText.split('-')[0];
+                var parts = startText.split(':');
+
+                var candidate = new Date(now);
+                candidate.setHours(
+                    parseInt(parts[0], 10),
+                    parseInt(parts[1], 10),
+                    0,
+                    0
+                );
+
+                if (candidate.getTime() <= nowMs) {
+                    candidate.setDate(candidate.getDate() + 1);
+                }
+
+                return candidate;
+            }
+
+            function formatCountdown(ms) {
+                if (ms <= 0) return '即將開始';
+
+                var totalSeconds = Math.floor(ms / 1000);
+                var hours = Math.floor(totalSeconds / 3600);
+                var minutes = Math.floor((totalSeconds % 3600) / 60);
+                var seconds = totalSeconds % 60;
+
+                return '還有 ' +
+                    (hours < 10 ? '0' : '') + hours + ':' +
+                    (minutes < 10 ? '0' : '') + minutes + ':' +
+                    (seconds < 10 ? '0' : '') + seconds;
+            }
+
+            fixedBossConfig.forEach(function(fixed) {
+                var occurrences = fixed.times.map(function(timeText) {
+                    return {
+                        text: timeText,
+                        date: getNextOccurrence(timeText)
+                    };
+                });
+
+                occurrences.sort(function(a, b) {
+                    return a.date.getTime() - b.date.getTime();
+                });
+
+                var next = occurrences[0];
+                var countdown = next.date.getTime() - nowMs;
+
+                fixedRows.push({
+                    name: fixed.name,
+                    times: fixed.times,
+                    next: next,
+                    countdown: countdown
+                });
+            });
+
+            fixedRows.sort(function(a, b) {
+                return a.next.date.getTime() - b.next.date.getTime();
+            });
+
+            fixedRows.forEach(function(item) {
+                var row = document.createElement('div');
+                row.className = 'fixed-row';
+
+                var soon = item.countdown <= 30 * 60 * 1000;
+                var cls = soon ? ' fixed-soon' : '';
+
+                row.innerHTML =
+                    '<div class="fixed-info">' +
+                        '<div class="fixed-next' + cls + '">' +
+                            item.next.text +
+                        '</div>' +
+                        '<div class="fixed-name">' +
+                            '⏰ ' + item.name +
+                        '</div>' +
+                        '<div class="fixed-schedule">' +
+                            '每日：' + item.times.join('　') +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="fixed-countdown' + cls + '">' +
+                        formatCountdown(item.countdown) +
+                    '</div>';
+
+                container.appendChild(row);
+            });
+        }
+
         function renderTable() {
             var pContain = document.getElementById('purple-boss-container'),
                 nContain = document.getElementById('normal-boss-container');
