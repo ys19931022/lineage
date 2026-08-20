@@ -89,7 +89,7 @@
             <button class="boss-btn-normal" onclick="quickReportKill('巨型蠕蟲(海底)')">海底蠕蟲</button>
             <button class="boss-btn-normal" onclick="quickReportKill('大黑長者')">大黑長者</button>
             <button class="boss-btn-normal" onclick="quickReportKill('85飛龍')">85飛龍</button>
-            <button class="boss-btn-normal" onclick="quickReportKill('87飛龍')">87飛龍</button>
+            <button class="boss-btn-normal" onclick="quickReportKill('87飛龍')">87飛長</button>
             <button class="boss-btn-normal" onclick="quickReportKill('強盜頭目')">強盜頭目</button>
             <button class="boss-btn-normal" onclick="quickReportKill('樹精')">樹精</button>
             <button class="boss-btn-normal" onclick="quickReportKill('巨大鱷魚')">巨大鱷魚</button>
@@ -111,20 +111,18 @@
     <h3 class="normal-header">⚔️ 一般野外 BOSS 倒數</h3>
     <div id="normal-boss-container" class="boss-list"></div>
     <script>
-        // 🔒 使用專為古魯丁搭建的全新純文字儲存對應鏈，杜絕任何物件破壞
+        // 🌟 核心修正：啟用全新解鎖防火牆權限的古魯丁專屬 Firebase 即時通訊通道
         var firebaseUrl = "https://firebaseio.com";
-        var localKey = "lineagem_gludin_pure_map_v6";
+        var localKey = "lineagem_gludin_pure_map_v6.5";
         
         var bossConfig = [
             { name: "賽尼斯的分身", cooldown: 180, isPurple: true }, { name: "死亡騎士", cooldown: 240, isPurple: true }, { name: "巨大飛龍", cooldown: 360, isPurple: true }, { name: "暗黑大將軍貝里斯", cooldown: 360, isPurple: true }, { name: "不死鳥", cooldown: 480, isPurple: true }, { name: "古代巨人", cooldown: 510, isPurple: true }, { name: "克特", cooldown: 600, isPurple: true },
             { name: "伊弗利特", cooldown: 120, isPurple: false }, { name: "881left飛龍", displayName: "881左飛龍", cooldown: 120, isPurple: false }, { name: "882right飛龍", displayName: "882右飛龍", cooldown: 120, isPurple: false }, { name: "綠王", cooldown: 120, isPurple: false }, { name: "紅王", cooldown: 120, isPurple: false }, { name: "四色", cooldown: 120, isPurple: false }, { name: "巨型蠕蟲(海底)", cooldown: 120, isPurple: false }, { name: "大黑長者", cooldown: 180, isPurple: false }, { name: "85飛龍", cooldown: 180, isPurple: false }, { name: "87飛龍", cooldown: 180, isPurple: false }, { name: "強盜頭目", cooldown: 180, isPurple: false }, { name: "樹精", cooldown: 180, isPurple: false }, { name: "巨大鱷魚", cooldown: 180, isPurple: false }, { name: "大腳瑪幽", cooldown: 180, isPurple: false }, { name: "變形怪首領", cooldown: 210, isPurple: false }, { name: "巨大守護螞蟻", cooldown: 210, isPurple: false }, { name: "奈克諾斯", cooldown: 240, isPurple: false }, { name: "蜘蛛", cooldown: 240, isPurple: false }, { name: "力卡溫", cooldown: 480, isPurple: false }, { name: "惡魔監視者", cooldown: 360, isPurple: false }, { name: "烏勒庫斯", cooldown: 360, isPurple: false }, { name: "卡司特王", cooldown: 450, isPurple: false }
         ];
         
-        // 核心字典：只存 {"王名": "時間戳|填單人|標記|基礎輪空"} 這種純文字，100% 絕對能永久儲存！
         var bossSpawnMap = {}; 
 
         function initSystem() {
-            // 一開網頁，光速從手機鋼印拉出文字資料，拒絕 `--:--:--` 空白
             var localBackup = localStorage.getItem(localKey);
             if (localBackup) {
                 try { bossSpawnMap = JSON.parse(localBackup); } catch(e) { bossSpawnMap = {}; }
@@ -136,7 +134,9 @@
             
             renderTable();
             pullFromCloud();
-            setInterval(pullFromCloud, 2500); // 每2.5秒高鐵同步
+            
+            // 每 2 秒進行高頻雙向雲端同步
+            setInterval(pullFromCloud, 2000); 
             setInterval(updateClock, 1000);
         }
         
@@ -158,16 +158,14 @@
             renderTable();
         }
 
-        // Firebase 智慧文字鏈讀取
         function pullFromCloud() {
             var xhr = new XMLHttpRequest();
-            xhr.open("GET", firebaseUrl + "?nocache=" + new Date().getTime(), true);
+            xhr.open("GET", firebaseUrl, true);
             xhr.onreadystatechange = function() {
                 if (xhr.readyState === 4 && xhr.status === 200) {
                     try {
                         var res = JSON.parse(xhr.responseText);
                         if (res && typeof res === 'object') {
-                            // 檢查雲端是不是空的
                             var isCloudEmpty = true;
                             for (var k in res) { if(res[k]) { isCloudEmpty = false; break; } }
                             
@@ -176,7 +174,6 @@
                                 localStorage.setItem(localKey, JSON.stringify(bossSpawnMap));
                                 renderTable();
                             } else {
-                                // 雲端空了但手機有資料，反向灌回雲端
                                 var hasLocal = false;
                                 for (var k in bossSpawnMap) { if(bossSpawnMap[k]) { hasLocal = true; break; } }
                                 if(hasLocal) { pushToCloud(); }
@@ -196,7 +193,6 @@
             xhr.send(JSON.stringify(bossSpawnMap));
             renderTable(); 
         }
-        // 🛠️ 歷史級功能：將計算好的時間戳記以「純字串」格式寫入字典，徹底封死歸零漏洞
         function setMaintenanceTime() {
             var myID = getValidID(); if(!myID) return;
             var inputEl = document.getElementById('maint-start-input'); var val = inputEl.value.trim().replace(/[:\/ ]/g, '');
@@ -213,7 +209,7 @@
             if (!confirm('確認要以開機時間起算並同步全盟嗎？')) return;
             
             var nowMs = now.getTime();
-            bossSpawnMap = {}; // 初始化字典
+            bossSpawnMap = {}; 
             
             for (var i = 0; i < bossConfig.length; i++) {
                 var config = bossConfig[i];
@@ -229,10 +225,9 @@
                     finalTimestamp = firstSpawnMs + (passedRounds * cdMs);
                 }
                 
-                // 🌟 用「純文字組合」存入字典：時間戳|填單人|標記|基礎輪空
                 bossSpawnMap[config.name] = finalTimestamp + "|" + myID + "|開機時間|" + passedRounds;
             }
-            pushToCloud(); inputEl.value = ''; alert('⚙️ 鋼印字典打包成功！多輪數據已鎖死上傳！');
+            pushToCloud(); inputEl.value = ''; alert('⚙️ 雲端已全面放行！已成功同步全體盟友王表！');
         }
 
         function quickReportKill(bossName) {
@@ -245,7 +240,6 @@
             
             var cleanInput = userInput.replace(/:/g, '').trim(); 
             if (cleanInput === '') {
-                // 手動輪空字串包
                 bossSpawnMap[bossName] = "SKIP|" + myID + "||0";
                 pushToCloud(); return;
             }
@@ -261,7 +255,6 @@
             var targetDate = new Date(); targetDate.setHours(killH, killM, killS, 0);
             var nextSpawn = targetDate.getTime() + (getCooldown(bossName) * 60 * 1000);
             
-            // 寫入純文字鏈
             bossSpawnMap[bossName] = nextSpawn + "|" + myID + "|" + bossNote + "|0";
             pushToCloud();
         }
@@ -298,7 +291,6 @@
                 var timeDisplay = '--:--:--'; var isFlashing = false;
                 var updater = ""; var note = ""; var displayRounds = 0; var isSkip = false;
                 
-                // 從純文字字典拆解數據
                 var dataStr = bossSpawnMap[config.name];
                 if (dataStr && dataStr.indexOf('|') !== -1) {
                     var parts = dataStr.split('|');
@@ -315,7 +307,6 @@
                         var cdMs = config.cooldown * 60 * 1000;
                         displayRounds = baseRounds;
                         
-                        // 時間又過期了，動態累加輪空
                         if (nowMs >= spawnTimestamp) {
                             var overMs = nowMs - spawnTimestamp;
                             var overMin = overMs / (60 * 1000);
@@ -328,7 +319,6 @@
                             }
                         }
                         
-                        // 🌟 純淨時間：拔除月日，只留 時:分:秒
                         var dObj = new Date(spawnTimestamp);
                         var hStr = (dObj.getHours() < 10 ? '0' : '') + dObj.getHours();
                         var mStr = (dObj.getMinutes() < 10 ? '0' : '') + dObj.getMinutes();
