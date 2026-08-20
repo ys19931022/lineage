@@ -107,7 +107,7 @@
     <h3 class="normal-header">⚔️ 一般野外 BOSS 倒數</h3>
     <div id="normal-boss-container" class="boss-list"></div>
     <script>
-        // 重新分配獨立的安全雲端資料庫路徑，防交叉污染
+        // 啟用全新防洗掉機制之資料庫儲存點
         var syncUrl = "https://kvdb.io";
         
         var bossConfig = [
@@ -115,6 +115,8 @@
             { name: "伊弗利特", cooldown: 120, isPurple: false }, { name: "881left飛龍", displayName: "881左飛龍", cooldown: 120, isPurple: false }, { name: "882right飛龍", displayName: "882右飛龍", cooldown: 120, isPurple: false }, { name: "綠王", cooldown: 120, isPurple: false }, { name: "紅王", cooldown: 120, isPurple: false }, { name: "四色", cooldown: 120, isPurple: false }, { name: "巨型蠕蟲(海底)", cooldown: 120, isPurple: false }, { name: "大黑長者", cooldown: 180, isPurple: false }, { name: "85飛龍", cooldown: 180, isPurple: false }, { name: "87飛龍", cooldown: 180, isPurple: false }, { name: "強盜頭目", cooldown: 180, isPurple: false }, { name: "樹精", cooldown: 180, isPurple: false }, { name: "巨大鱷魚", cooldown: 180, isPurple: false }, { name: "大腳瑪幽", cooldown: 180, isPurple: false }, { name: "變形怪首領", cooldown: 210, isPurple: false }, { name: "巨大守護螞蟻", cooldown: 210, isPurple: false }, { name: "奈克諾斯", cooldown: 240, isPurple: false }, { name: "蜘蛛", cooldown: 240, isPurple: false }, { name: "力卡溫", cooldown: 480, isPurple: false }, { name: "惡魔監視者", cooldown: 360, isPurple: false }, { name: "烏勒庫斯", cooldown: 360, isPurple: false }, { name: "卡司特王", cooldown: 450, isPurple: false }
         ];
         var bossState = [];
+        // 核心同步守護鎖：只要雲端沒有成功下載完畢，就不允許時鐘渲染覆蓋畫面
+        var isCloudLoaded = false; 
 
         function initSystem() {
             bossState = [];
@@ -126,9 +128,8 @@
             var savedID = localStorage.getItem('hms_user_id');
             if(savedID) { document.getElementById('user-id-input').value = savedID; }
             
-            renderTable();
+            // 初始化時不呼叫 renderTable()，全力等待雲端下載
             pullFromCloud();
-            // 將雲端同步頻率拉高到 3 秒一次，即時呈現戰況
             setInterval(pullFromCloud, 3000);
             setInterval(updateClock, 1000);
         }
@@ -150,7 +151,9 @@
             var timeStr = (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
             var clockEl = document.getElementById('standard-clock');
             if(clockEl) { clockEl.innerText = "🇹🇼 中原標準時間 ➔ " + timeStr; }
-            renderTable(); 
+            
+            // 守護鎖啟動：只有雲端成功抓到資料才允許每秒刷新畫面，防止刷新將時間洗成空白
+            if (isCloudLoaded) { renderTable(); }
         }
 
         function pullFromCloud() {
@@ -160,9 +163,9 @@
                 if (xhr.readyState === 4 && xhr.status === 200 && xhr.responseText.trim() !== "") {
                     try {
                         var res = JSON.parse(xhr.responseText);
-                        // 強制複核：雲端抓取到的資料長度必須完全符合最新的 29 隻王怪，才能覆蓋，防止舊版殘留污染
                         if (res && Array.isArray(res) && res.length === bossConfig.length) { 
                             bossState = res;
+                            isCloudLoaded = true; // 雲端成功載入，解除畫面鎖定
                             renderTable(); 
                         }
                     } catch(e) {}
@@ -174,7 +177,10 @@
             var xhr = new XMLHttpRequest();
             xhr.open("POST", syncUrl, true);
             xhr.setRequestHeader("Content-Type", "application/json");
+            // 操作時立刻解鎖並渲染畫面，提升操作流暢度
+            isCloudLoaded = true; 
             xhr.send(JSON.stringify(bossState));
+            renderTable(); 
         }
         function setMaintenanceTime() {
             var myID = getValidID(); if(!myID) return;
@@ -191,7 +197,7 @@
                 bossState[i].skipCount = 0; bossState[i].note = "開機時間"; 
                 bossState[i].updater = myID; 
             }
-            pushToCloud(); renderTable(); inputEl.value = ''; alert('全盟開機時間已推播至雲端庫！');
+            pushToCloud(); inputEl.value = ''; alert('全盟開機時間已推播至雲端庫並即時重新渲染！');
         }
         function quickReportKill(bossName) {
             var myID = getValidID(); if(!myID) return;
@@ -205,7 +211,7 @@
             var cleanInput = userInput.replace(/:/g, '').trim(); 
             if (cleanInput === '') {
                 targetBoss.skipCount = (targetBoss.skipCount || 0) + 1; targetBoss.nextSpawnTime = null; targetBoss.note = ""; targetBoss.updater = myID;
-                pushToCloud(); renderTable(); return;
+                pushToCloud(); return;
             }
             var killH, killM, killS = 0;
             if (cleanInput.length === 4) { killH = parseInt(cleanInput.substring(0, 2), 10); killM = parseInt(cleanInput.substring(2, 4), 10); killS = 0; }
@@ -220,7 +226,7 @@
             var totalMinutes = killH * 60 + killM + targetBoss.cooldown; var spawnH = Math.floor((totalMinutes / 60) % 24), spawnM = Math.floor(totalMinutes % 60);
             targetBoss.nextSpawnTime = (spawnH < 10 ? '0' : '') + spawnH + ':' + (spawnM < 10 ? '0' : '') + spawnM + ':' + (killS < 10 ? '0' : '') + killS;
             targetBoss.skipCount = 0; targetBoss.note = bossNote; targetBoss.updater = myID; 
-            pushToCloud(); renderTable();
+            pushToCloud();
         }
         function deleteSingleBoss(bossName) {
             var myID = getValidID(); if(!myID) return;
@@ -229,13 +235,13 @@
             if (!targetBoss) return;
             if (confirm('確定要清除【' + (targetBoss.displayName || targetBoss.name) + '】並清空雲端此怪紀錄嗎？')) {
                 targetBoss.nextSpawnTime = null; targetBoss.skipCount = 0; targetBoss.note = ""; targetBoss.updater = "";
-                pushToCloud(); renderTable();
+                pushToCloud();
             }
         }
         function resetToMaintenance() { 
             if (confirm('🚨 注意！這將會清除雲端上「所有盟友手機」的全部時間紀錄，確定嗎？')) { 
                 for (var i = 0; i < bossState.length; i++) { var b = bossState[i]; b.nextSpawnTime = null; b.skipCount = 0; b.note = ""; b.updater = ""; }
-                pushToCloud(); renderTable(); 
+                pushToCloud(); 
             } 
         }
         function renderTable() {
@@ -249,7 +255,7 @@
                 var b = bossState[i]; var row = document.createElement('div'); row.className = 'boss-row'; 
                 var timeDisplay = '--:--:--'; var isFlashing = false; var autoSkipCount = 0;
                 
-                // 強制讀取主原始設定做為唯一複核標準，徹底阻斷舊資料污染伊弗利特
+                // 鋼鐵安全鎖：強制比對主設定檔，徹底消滅伊弗利特變紫色的任何可能性
                 var realIsPurple = b.isPurple;
                 for (var j = 0; j < bossConfig.length; j++) {
                     if (bossConfig[j].name === b.name) { realIsPurple = bossConfig[j].isPurple; break; }
@@ -265,7 +271,7 @@
                     var diff = curTotalMinutes - spawnTotalMinutes;
                     if (diff < -720) { diff += 1440; } else if (diff > 720) { diff -= 1440; }
                     
-                    // 核心修正：超時改為 10 分鐘！只要時間超過 10 分鐘，立刻自動在前端加冷卻推進下一輪！
+                    // 10分鐘超時自動輪空推進算法
                     if (diff >= 0) {
                         if (diff <= 10) {
                             isFlashing = true; 
@@ -294,7 +300,6 @@
                     noteHtml += '<span class="note-tag note-autoskip">自動輪空 ' + autoSkipCount + ' 輪</span>'; 
                 }
                 
-                // 語法安全修正：確實在此處宣告並賦予 userHtml 變數，100% 阻斷死機
                 var userHtml = "";
                 if (b.updater) { userHtml = '<span class="user-tag">✍️ ' + b.updater + '</span>'; }
                 
