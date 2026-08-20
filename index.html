@@ -338,6 +338,11 @@
 
         @keyframes flash-warning { 0% { color: #ffd700; opacity: 1; } 50% { color: #ff5722; opacity: 0.4; } 100% { color: #ffd700; opacity: 1; } }
         .time-flash { animation: flash-warning 1s infinite; font-weight: 900; text-shadow: 0 0 5px rgba(255,87,34,0.6); }
+        .boss-time .seconds {
+            font-size: 0.68em;
+            opacity: 0.85;
+        }
+
     
         /* 🔐 血盟專屬驗證：未驗證前隱藏王表 */
         #alliance-lock {
@@ -1323,6 +1328,23 @@
             0
         );
 
+        function formatBossTime(timeText) {
+            if (!timeText || timeText === '--:--:--') {
+                return timeText;
+            }
+
+            var match = timeText.match(/^(\d{2}:\d{2})(:\d{2})$/);
+
+            if (!match) {
+                return timeText;
+            }
+
+            return match[1] +
+                '<span class="seconds">' +
+                match[2] +
+                '</span>';
+        }
+
         function renderTable() {
             var pContain = document.getElementById('purple-boss-container'),
                 nContain = document.getElementById('normal-boss-container');
@@ -1553,7 +1575,7 @@
                             '"' +
                             flashClassStr +
                         '>' +
-                            timeDisplay +
+                            formatBossTime(timeDisplay) +
                         '</div>' +
 
                         '<div class="boss-name">' +
