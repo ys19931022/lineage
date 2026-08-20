@@ -63,13 +63,13 @@
         <div class="maint-zone">
             <span style="color: #03dac6; font-weight: bold; font-size: 0.85rem;">🗓️ 跨日開機輸入：</span>
             <input type="text" id="maint-start-input" class="input-time" placeholder="例如08201030 (8/20 10:30)">
-            <button class="btn-action" onclick="setMaintenanceTime()">📢 計算輪空並同步全盟</button>
+            <button class="btn-action" onclick="setMaintenanceTime()">📢 計算輪空並打包連結</button>
         </div>
-        <button class="btn-reset" onclick="resetToMaintenance()">全面重置雲端王表</button>
+        <button class="btn-reset" onclick="resetToMaintenance()">全面重置本地王表</button>
     </div>
     
     <div class="btn-zone">
-        <h3 style="color: var(--purple-theme); margin-top:0; font-size:0.9rem;">🌟 點擊按鈕回報戰況：【手機與電腦全自動無感對齊中】</h3>
+        <h3 style="color: var(--purple-theme); margin-top:0; font-size:0.9rem;">🌟 點擊按鈕回報戰況：【回報後網址自動更新，複製網址發到 LINE 群即大同步】</h3>
         <div class="btn-grid" id="purple-btns">
             <button class="boss-btn-purple" onclick="quickReportKill('賽尼斯的分身')">賽尼斯分身</button>
             <button class="boss-btn-purple" onclick="quickReportKill('死亡騎士')">死亡騎士</button>
@@ -111,37 +111,42 @@
     <h3 class="normal-header">⚔️ 一般野外 BOSS 倒數</h3>
     <div id="normal-boss-container" class="boss-list"></div>
     <script>
-        // 🌟 採用全新獨立且保證 100% 免驗證、專防 CORS 的公共同步槽，強制繞過 GitHub Page 暫存
-        var cloudUrl = "https://jsonstorage.net";
-        var localKey = "lineagem_gludin_pure_map_v20_final";
+        var localKey = "lineagem_gludin_pure_map_v21_url";
         
         var bossConfig = [
             { name: "賽尼斯的分身", cooldown: 180, isPurple: true }, { name: "死亡騎士", cooldown: 240, isPurple: true }, { name: "巨大飛龍", cooldown: 360, isPurple: true }, { name: "暗黑大將軍貝里斯", cooldown: 360, isPurple: true }, { name: "不死鳥", cooldown: 480, isPurple: true }, { name: "古代巨人", cooldown: 510, isPurple: true }, { name: "克特", cooldown: 600, isPurple: true },
             { name: "伊弗利特", cooldown: 120, isPurple: false }, { name: "881left飛龍", displayName: "881左飛龍", cooldown: 120, isPurple: false }, { name: "882right飛龍", displayName: "882右飛龍", cooldown: 120, isPurple: false }, { name: "綠王", cooldown: 120, isPurple: false }, { name: "紅王", cooldown: 120, isPurple: false }, { name: "四色", cooldown: 120, isPurple: false }, { name: "巨型蠕蟲(海底)", cooldown: 120, isPurple: false }, { name: "大黑長者", cooldown: 180, isPurple: false }, { name: "85飛龍", cooldown: 180, isPurple: false }, { name: "87飛龍", cooldown: 180, isPurple: false }, { name: "強盜頭目", cooldown: 180, isPurple: false }, { name: "樹精", cooldown: 180, isPurple: false }, { name: "巨大鱷魚", cooldown: 180, isPurple: false }, { name: "大腳瑪幽", cooldown: 180, isPurple: false }, { name: "變形怪首領", cooldown: 210, isPurple: false }, { name: "巨大守護螞蟻", cooldown: 210, isPurple: false }, { name: "奈克諾斯", cooldown: 240, isPurple: false }, { name: "蜘蛛", cooldown: 240, isPurple: false }, { name: "力卡溫", cooldown: 480, isPurple: false }, { name: "惡魔監視者", cooldown: 360, isPurple: false }, { name: "烏勒庫斯", cooldown: 360, isPurple: false }, { name: "卡司特王", cooldown: 450, isPurple: false }
         ];
         
-        var bossSpawnMap = { _last_updated: 0 }; 
+        var bossSpawnMap = {}; 
 
         function initSystem() {
-            // 🛑 自動清理舊測試版本殘留的亂七八糟 LocalStorage，防止排線衝突當機
-            for(var key in localStorage) {
-                if(key.startsWith("lineagem_gludin_") && key !== localKey) {
-                    localStorage.removeItem(key);
+            // 🌟 核心突破：網頁載入時，直接檢查網址上有沒有帶入加密的資料包
+            var urlParams = new URLSearchParams(window.location.search);
+            var urlData = urlParams.get('gludin_data');
+            
+            if (urlData) {
+                try {
+                    var decodedStr = decodeURIComponent(atob(urlData));
+                    var parsedObj = JSON.parse(decodedStr);
+                    if (parsedObj && typeof parsedObj === 'object') {
+                        bossSpawnMap = parsedObj;
+                        localStorage.setItem(localKey, JSON.stringify(bossSpawnMap));
+                    }
+                } catch(e) {
+                    alert("讀取網址同步包失敗，改為讀取本地紀錄。");
                 }
+            } else {
+                var localBackup = localStorage.getItem(localKey);
+                if (localBackup) { try { bossSpawnMap = JSON.parse(localBackup); } catch(e) { bossSpawnMap = {}; } }
             }
-
-            var localBackup = localStorage.getItem(localKey);
-            if (localBackup) { try { bossSpawnMap = JSON.parse(localBackup); } catch(e) { bossSpawnMap = { _last_updated: 0 }; } }
-            if (!bossSpawnMap || !bossSpawnMap._last_updated) { bossSpawnMap = { _last_updated: 0 }; }
+            
+            if (!bossSpawnMap) { bossSpawnMap = {}; }
             
             var savedID = localStorage.getItem('hms_user_id');
             if(savedID) { document.getElementById('user-id-input').value = savedID; }
             
             renderTable();
-            pullFromCloud();
-            
-            // 每 2.5 秒超高頻無感抓取雲端最新戰報
-            setInterval(pullFromCloud, 2500); 
             setInterval(updateClock, 1000);
         }
         
@@ -163,36 +168,25 @@
             renderTable();
         }
 
-        async function pullFromCloud() {
+        // 🌟 網址包裝黑科技：每次更新資料，0.01 秒內直接重寫瀏覽器網址，並複製到剪貼簿
+        function syncAndPackageUrl() {
+            localStorage.setItem(localKey, JSON.stringify(bossSpawnMap));
+            renderTable();
             try {
-                // 🚀 加入超級亂數後綴，強行粉碎任何電信商、瀏覽器的舊網頁快取限制
-                var forceUrl = cloudUrl + "?nocache=" + new Date().getTime() + Math.random();
-                var response = await fetch(forceUrl, { method: "GET", cache: "no-store" });
-                if (response.ok) {
-                    var res = await response.json();
-                    if (res && typeof res === 'object' && res._last_updated) {
-                        // 唯有當雲端數據時間戳大於本地時才執行覆蓋
-                        if (parseInt(res._last_updated, 10) > parseInt(bossSpawnMap._last_updated || 0, 10)) {
-                            bossSpawnMap = res;
-                            localStorage.setItem(localKey, JSON.stringify(bossSpawnMap));
-                            renderTable();
-                        }
-                    }
-                }
-            } catch(e) {}
-        }
-        
-        async function pushToCloud() {
-            try {
-                bossSpawnMap._last_updated = new Date().getTime(); 
-                localStorage.setItem(localKey, JSON.stringify(bossSpawnMap));
-                renderTable();
+                var jsonStr = JSON.stringify(bossSpawnMap);
+                var encodedCode = btoa(encodeURIComponent(jsonStr));
                 
-                await fetch(cloudUrl, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(bossSpawnMap)
-                });
+                // 動態產生包含完整王表倒數數據的專屬網址
+                var newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + "?gludin_data=" + encodedCode;
+                window.history.replaceState({ path: newUrl }, '', newUrl);
+                
+                // 貼心幫忙自動複製
+                var dummy = document.createElement("textarea");
+                document.body.appendChild(dummy);
+                dummy.value = newUrl;
+                dummy.select();
+                document.execCommand("copy");
+                document.body.removeChild(dummy);
             } catch(e) {}
         }
         function setMaintenanceTime() {
@@ -211,7 +205,7 @@
             if (!confirm('確認要以開機時間起算並同步全盟嗎？')) return;
             
             var nowMs = now.getTime();
-            bossSpawnMap = { _last_updated: nowMs }; 
+            bossSpawnMap = {}; 
             
             for (var i = 0; i < bossConfig.length; i++) {
                 var config = bossConfig[i];
@@ -229,7 +223,9 @@
                 
                 bossSpawnMap[config.name] = finalTimestamp + "|" + myID + "|開機時間|" + passedRounds;
             }
-            pushToCloud(); inputEl.value = ''; alert('⚙️ 全新雲端數據通道初始化大成功！');
+            syncAndPackageUrl(); 
+            inputEl.value = ''; 
+            alert('⚙️ 網址加密打包成功！最新同步連結已【自動複製】，可以直接去 LINE 群組貼上了！');
         }
 
         function quickReportKill(bossName) {
@@ -243,7 +239,7 @@
             var cleanInput = userInput.replace(/:/g, '').trim(); 
             if (cleanInput === '') {
                 bossSpawnMap[bossName] = "SKIP|" + myID + "||0";
-                pushToCloud(); return;
+                syncAndPackageUrl(); return;
             }
             
             var killH, killM, killS = 0;
@@ -258,7 +254,7 @@
             var nextSpawn = targetDate.getTime() + (getCooldown(bossName) * 60 * 1000);
             
             bossSpawnMap[bossName] = nextSpawn + "|" + myID + "|" + bossNote + "|0";
-            pushToCloud();
+            syncAndPackageUrl();
         }
         
         function getCooldown(name) {
@@ -269,14 +265,14 @@
             var myID = getValidID(); if(!myID) return;
             if (confirm('確定要清除【' + bossName + '】的紀錄嗎？')) {
                 bossSpawnMap[bossName] = "";
-                pushToCloud();
+                syncAndPackageUrl();
             }
         }
         
         function resetToMaintenance() { 
-            if (confirm('🚨 注意！這將會強制清空雲端上所有的數據，確認嗎？')) { 
-                bossSpawnMap = { _last_updated: new Date().getTime() };
-                pushToCloud(); 
+            if (confirm('🚨 注意！這將會強制清空本地的所有數據，確認嗎？')) { 
+                bossSpawnMap = {};
+                syncAndPackageUrl(); 
             } 
         }
         
