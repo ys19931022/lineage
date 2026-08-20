@@ -337,7 +337,23 @@
         }
 
         @keyframes flash-warning { 0% { color: #ffd700; opacity: 1; } 50% { color: #ff5722; opacity: 0.4; } 100% { color: #ffd700; opacity: 1; } }
-        .time-flash { animation: flash-warning 1s infinite; font-weight: 900; text-shadow: 0 0 5px rgba(255,87,34,0.6); }
+        .time-flash {
+            animation: flash-warning 1s infinite !important;
+            font-weight: 900;
+            text-shadow: 0 0 8px rgba(255,87,34,0.9);
+        }
+
+        /* 出王前 1 分鐘：讓時間本身明顯閃爍 */
+        @keyframes flash-warning {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.35;
+                transform: scale(1.04);
+            }
+        }
         .boss-time .seconds {
             font-size: 0.68em;
             opacity: 0.85;
