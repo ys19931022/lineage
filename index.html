@@ -111,8 +111,8 @@
     <h3 class="normal-header">⚔️ 一般野外 BOSS 倒數</h3>
     <div id="normal-boss-container" class="boss-list"></div>
     <script>
-        // 🔒 啟用專為古魯丁血盟搭建的 2026 正規 Firebase 實時同步管道，100% 跨域不卡頓
         var firebaseUrl = "https://firebaseio.com";
+        var localKey = "lineagem_gludin_local_backup";
         
         var bossConfig = [
             { name: "賽尼斯的分身", cooldown: 180, isPurple: true }, { name: "死亡騎士", cooldown: 240, isPurple: true }, { name: "巨大飛龍", cooldown: 360, isPurple: true }, { name: "暗黑大將軍貝里斯", cooldown: 360, isPurple: true }, { name: "不死鳥", cooldown: 480, isPurple: true }, { name: "古代巨人", cooldown: 510, isPurple: true }, { name: "克特", cooldown: 600, isPurple: true },
@@ -121,10 +121,20 @@
         var bossState = [];
 
         function initSystem() {
-            bossState = [];
-            for (var i = 0; i < bossConfig.length; i++) {
-                var b = bossConfig[i];
-                bossState.push({ name: b.name, displayName: b.displayName || b.name, cooldown: b.cooldown, isPurple: b.isPurple, nextSpawnTimestamp: null, skipCount: 0, note: "", updater: "", autoRounds: 0 });
+            // 🛡️ 保險防線一：初始化時，100% 先從本地記憶體抓出上次存的時間，確保重整時絕對不露白
+            var localBackup = localStorage.getItem(localKey);
+            if (localBackup) {
+                try { bossState = JSON.parse(localBackup); } catch(e) {}
+            }
+            
+            // 如果本地沒備份，才建立預設乾淨陣列
+            if (!bossState || bossState.length !== bossConfig.length) {
+                bossState = [];
+                for (var i = 0; i < bossConfig.length; i++) {
+                    var b = bossConfig[i];
+                    bossState.push({ name: b.name, displayName: b.displayName || b.name, cooldown: b.cooldown, isPurple: b.isPurple, nextSpawnTimestamp: null, skipCount: 0, note: "", updater: "", autoRounds: 0 });
+                }
+                localStorage.setItem(localKey, JSON.stringify(bossState));
             }
             
             var savedID = localStorage.getItem('hms_user_id');
@@ -132,7 +142,6 @@
             
             renderTable();
             pullFromCloud();
-            // 每 2.5 秒高頻向 Firebase 監聽有無其他盟友回報，實現免重新整理全自動同步
             setInterval(pullFromCloud, 2500);
             setInterval(updateClock, 1000);
         }
@@ -156,17 +165,39 @@
             renderTable();
         }
 
-        // Firebase 專用高可靠讀取
+        // 🛡️ 保險防線二：Firebase 智慧融合讀取
         function pullFromCloud() {
             var xhr = new XMLHttpRequest();
-            xhr.open("GET", firebaseUrl, true);
+            xhr.open("GET", firebaseUrl + "?nocache=" + new Date().getTime(), true);
             xhr.onreadystatechange = function() {
                 if (xhr.readyState === 4 && xhr.status === 200) {
                     try {
                         var res = JSON.parse(xhr.responseText);
-                        if (res && Array.isArray(res) && res.length === bossConfig.length) { 
-                            bossState = res;
-                            renderTable(); 
+                        if (res && Array.isArray(res) && res.length === bossConfig.length) {
+                            
+                            // 檢查雲端資料是不是全新的空白狀態（所有王的計時戳都是空）
+                            var isCloudEmpty = true;
+                            for (var i = 0; i < res.length; i++) {
+                                if (res[i].nextSpawnTimestamp !== null || res[i].skipCount > 0) {
+                                    isCloudEmpty = false;
+                                    break;
+                                }
+                            }
+                            
+                            // 🌟 核心保險死結鎖：如果雲端有人存過時間，就聽雲端的；
+                            // 萬一重整時發現雲端是一片空白，絕對不准覆蓋手機！直接強制把手機本地正確的時間推上去修正雲端！
+                            if (!isCloudEmpty) {
+                                bossState = res;
+                                localStorage.setItem(localKey, JSON.stringify(bossState));
+                                renderTable();
+                            } else {
+                                // 雲端是空的，但手機裡其實有算好的時間，主動反向修復雲端
+                                var hasLocalData = false;
+                                for(var j=0; j<bossState.length; j++) {
+                                    if(bossState[j].nextSpawnTimestamp !== null) { hasLocalData = true; break; }
+                                }
+                                if(hasLocalData) { pushToCloud(); }
+                            }
                         }
                     } catch(e) {}
                 }
@@ -174,15 +205,15 @@
             xhr.send();
         }
         
-        // Firebase 專用高可靠寫入 (覆蓋寫入)
         function pushToCloud() {
+            // 同時儲存到手機鋼印與 Firebase 雲端
+            localStorage.setItem(localKey, JSON.stringify(bossState));
             var xhr = new XMLHttpRequest();
             xhr.open("PUT", firebaseUrl, true);
             xhr.setRequestHeader("Content-Type", "application/json");
             xhr.send(JSON.stringify(bossState));
             renderTable(); 
         }
-        // 🛠️ 升級：輸入開機時間時，在「登記當下」直接把輪空數據算好存進雲端！
         function setMaintenanceTime() {
             var myID = getValidID(); if(!myID) return;
             var inputEl = document.getElementById('maint-start-input'); var val = inputEl.value.trim().replace(/[:\/ ]/g, '');
@@ -207,16 +238,16 @@
                 
                 if (nowMs < firstSpawnMs) {
                     bossState[i].nextSpawnTimestamp = firstSpawnMs;
-                    bossState[i].autoRounds = 0; // 還沒到第一輪，輪空為0
+                    bossState[i].autoRounds = 0;
                 } else {
                     var elapsedMs = nowMs - firstSpawnMs;
                     var passedRounds = Math.floor(elapsedMs / cdMs) + 1;
                     bossState[i].nextSpawnTimestamp = firstSpawnMs + (passedRounds * cdMs);
-                    bossState[i].autoRounds = passedRounds; // 🌟 核心修正：在登記當下直接鎖定輪空次數
+                    bossState[i].autoRounds = passedRounds;
                 }
                 bossState[i].skipCount = 0; bossState[i].note = "開機時間"; bossState[i].updater = myID; 
             }
-            pushToCloud(); inputEl.value = ''; alert('⚙️ 全盟開機時間與多輪推進已同步至 Firebase 雲端！');
+            pushToCloud(); inputEl.value = ''; alert('⚙️ 全盟開機時間與多輪推進已同步至 Firebase 雲端與本地端！');
         }
 
         function quickReportKill(bossName) {
@@ -248,7 +279,7 @@
 
             var targetDate = new Date(); targetDate.setHours(killH, killM, killS, 0);
             targetBoss.nextSpawnTimestamp = targetDate.getTime() + (targetBoss.cooldown * 60 * 1000);
-            targetBoss.skipCount = 0; targetBoss.note = bossNote; targetBoss.updater = myID; targetBoss.autoRounds = 0; // 手動回報則清除自動輪空標記
+            targetBoss.skipCount = 0; targetBoss.note = bossNote; targetBoss.updater = myID; targetBoss.autoRounds = 0;
             pushToCloud();
         }
         function deleteSingleBoss(bossName) {
@@ -283,7 +314,6 @@
                     var spawnTimestamp = b.nextSpawnTimestamp;
                     var cdMs = b.cooldown * 60 * 1000;
                     
-                    // 如果運作中時間又超過了，動態即時往上疊加輪空
                     if (nowMs >= spawnTimestamp) {
                         var overMs = nowMs - spawnTimestamp;
                         var overMin = overMs / (60 * 1000);
@@ -296,7 +326,6 @@
                         }
                     }
                     
-                    // 🌟 核心修正：依照您的要求，完全去掉 月/日，只保留極度純淨的 [時:分:秒]
                     var dObj = new Date(spawnTimestamp);
                     var hStr = (dObj.getHours() < 10 ? '0' : '') + dObj.getHours();
                     var mStr = (dObj.getMinutes() < 10 ? '0' : '') + dObj.getMinutes();
@@ -313,7 +342,6 @@
                 else if (b.note === "廣播") { noteHtml = '<span class="note-tag note-broadcast">廣播</span>'; }
                 else if (b.note === "開機時間") { noteHtml = '<span class="note-tag note-maint">開機時間</span>'; }
                 
-                // 🌟 核心修正：高能醒目掛上自動輪空標記
                 if (currentDisplayRounds > 0) { 
                     noteHtml += '<span class="note-tag note-autoskip">自動輪空 ' + currentDisplayRounds + ' 輪</span>'; 
                 }
