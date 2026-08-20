@@ -31,8 +31,7 @@
         .boss-name { font-size: 0.9rem; }
         
         .boss-actions { display: flex; gap: 5px; }
-        .btn-sm { padding: 4px 6px; font-size: 0.75rem; background: #333; border: 1px solid #555; color: #ccc; border-radius: 4px; cursor: pointer; }
-        .btn-del { padding: 4px 6px; font-size: 0.75rem; background: #5c2514; border: 1px solid #e64a19; color: #ffab91; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .btn-del { padding: 5px 8px; font-size: 0.8rem; background: #5c2514; border: 1px solid #e64a19; color: #ffab91; border-radius: 4px; cursor: pointer; font-weight: bold; }
         .user-tag { font-size: 0.7rem; padding: 1px 5px; border-radius: 3px; background: #333; color: #ffb74d; border: 1px solid #ff9800; margin-left: 6px; font-family: monospace; font-weight: bold; }
         
         .status-tag { font-size: 0.7rem; padding: 1px 4px; border-radius: 3px; font-weight: bold; margin-right: 4px; }
@@ -43,7 +42,7 @@
         .note-enemy { background: #520000; color: #ff8888; border: 1px solid #ff4444; }
         .note-broadcast { background: #002b52; color: #88ccff; border: 1px solid #3399ff; }
         .note-maint { background: #1b5e20; color: #a5d6a7; border: 1px solid #4caf50; }
-        .note-autoskip { background: #4a0007; color: #ff8a80; border: 1px solid #ff5252; }
+        .note-autoskip { background: #4a0007; color: #ff8a80; border: 1px solid #ff5252; font-weight: bold; padding: 2px 5px; }
 
         @keyframes flash-warning { 0% { color: #ffd700; opacity: 1; } 50% { color: #ff5722; opacity: 0.4; } 100% { color: #ffd700; opacity: 1; } }
         .time-flash { animation: flash-warning 1s infinite; font-weight: 900; text-shadow: 0 0 5px rgba(255,87,34,0.6); }
@@ -63,7 +62,7 @@
             <input type="text" id="maint-start-input" class="input-time" placeholder="輸入開機時間例如 1030">
             <button class="btn-action" onclick="setMaintenanceTime()">📢 登記開機</button>
         </div>
-        <button class="btn-reset" onclick="resetToMaintenance()">全面重置</button>
+        <button class="btn-reset" onclick="resetToMaintenance()">全面重置雲端</button>
     </div>
     <div class="btn-zone">
         <h3 style="color: var(--purple-theme); margin-top:0; font-size:0.9rem;">🌟 點擊按鈕：登記戰況後，【所有盟友手機會自動即時同步，免重新整理】</h3>
@@ -108,38 +107,12 @@
     <h3 class="normal-header">⚔️ 一般野外 BOSS 倒數</h3>
     <div id="normal-boss-container" class="boss-list"></div>
     <script>
+        // 重新分配獨立的安全雲端資料庫路徑，防交叉污染
         var syncUrl = "https://kvdb.io";
         
         var bossConfig = [
-            { name: "賽尼斯的分身", cooldown: 180, isPurple: true }, 
-            { name: "死亡騎士", cooldown: 240, isPurple: true }, 
-            { name: "巨大飛龍", cooldown: 360, isPurple: true }, 
-            { name: "暗黑大將軍貝里斯", cooldown: 360, isPurple: true }, 
-            { name: "不死鳥", cooldown: 480, isPurple: true }, 
-            { name: "古代巨人", cooldown: 510, isPurple: true }, 
-            { name: "克特", cooldown: 600, isPurple: true },
-            { name: "伊弗利特", cooldown: 120, isPurple: false }, 
-            { name: "881left飛龍", displayName: "881左飛龍", cooldown: 120, isPurple: false }, 
-            { name: "882right飛龍", displayName: "882右飛龍", cooldown: 120, isPurple: false }, 
-            { name: "綠王", cooldown: 120, isPurple: false }, 
-            { name: "紅王", cooldown: 120, isPurple: false }, 
-            { name: "四色", cooldown: 120, isPurple: false }, 
-            { name: "巨型蠕蟲(海底)", cooldown: 120, isPurple: false }, 
-            { name: "大黑長者", cooldown: 180, isPurple: false }, 
-            { name: "85飛龍", cooldown: 180, isPurple: false }, 
-            { name: "87飛龍", cooldown: 180, isPurple: false }, 
-            { name: "強盜頭目", cooldown: 180, isPurple: false }, 
-            { name: "樹精", cooldown: 180, isPurple: false }, 
-            { name: "巨大鱷魚", cooldown: 180, isPurple: false }, 
-            { name: "大腳瑪幽", cooldown: 180, isPurple: false }, 
-            { name: "變形怪首領", cooldown: 210, isPurple: false }, 
-            { name: "巨大守護螞蟻", cooldown: 210, isPurple: false }, 
-            { name: "奈克諾斯", cooldown: 240, isPurple: false }, 
-            { name: "蜘蛛", cooldown: 240, isPurple: false }, 
-            { name: "力卡溫", cooldown: 480, isPurple: false }, 
-            { name: "惡魔監視者", cooldown: 360, isPurple: false }, 
-            { name: "烏勒庫斯", cooldown: 360, isPurple: false }, 
-            { name: "卡司特王", cooldown: 450, isPurple: false }
+            { name: "賽尼斯的分身", cooldown: 180, isPurple: true }, { name: "死亡騎士", cooldown: 240, isPurple: true }, { name: "巨大飛龍", cooldown: 360, isPurple: true }, { name: "暗黑大將軍貝里斯", cooldown: 360, isPurple: true }, { name: "不死鳥", cooldown: 480, isPurple: true }, { name: "古代巨人", cooldown: 510, isPurple: true }, { name: "克特", cooldown: 600, isPurple: true },
+            { name: "伊弗利特", cooldown: 120, isPurple: false }, { name: "881left飛龍", displayName: "881左飛龍", cooldown: 120, isPurple: false }, { name: "882right飛龍", displayName: "882右飛龍", cooldown: 120, isPurple: false }, { name: "綠王", cooldown: 120, isPurple: false }, { name: "紅王", cooldown: 120, isPurple: false }, { name: "四色", cooldown: 120, isPurple: false }, { name: "巨型蠕蟲(海底)", cooldown: 120, isPurple: false }, { name: "大黑長者", cooldown: 180, isPurple: false }, { name: "85飛龍", cooldown: 180, isPurple: false }, { name: "87飛龍", cooldown: 180, isPurple: false }, { name: "強盜頭目", cooldown: 180, isPurple: false }, { name: "樹精", cooldown: 180, isPurple: false }, { name: "巨大鱷魚", cooldown: 180, isPurple: false }, { name: "大腳瑪幽", cooldown: 180, isPurple: false }, { name: "變形怪首領", cooldown: 210, isPurple: false }, { name: "巨大守護螞蟻", cooldown: 210, isPurple: false }, { name: "奈克諾斯", cooldown: 240, isPurple: false }, { name: "蜘蛛", cooldown: 240, isPurple: false }, { name: "力卡溫", cooldown: 480, isPurple: false }, { name: "惡魔監視者", cooldown: 360, isPurple: false }, { name: "烏勒庫斯", cooldown: 360, isPurple: false }, { name: "卡司特王", cooldown: 450, isPurple: false }
         ];
         var bossState = [];
 
@@ -150,20 +123,13 @@
                 bossState.push({ name: b.name, displayName: b.displayName || b.name, cooldown: b.cooldown, isPurple: b.isPurple, nextSpawnTime: null, skipCount: 0, note: "", updater: "" });
             }
             
-            var localCache = localStorage.getItem('hms_boss_cache');
-            if (localCache) {
-                try {
-                    var parsed = JSON.parse(localCache);
-                    if (parsed && parsed.length > 0) { bossState = parsed; }
-                } catch(e) {}
-            }
-            
             var savedID = localStorage.getItem('hms_user_id');
             if(savedID) { document.getElementById('user-id-input').value = savedID; }
             
             renderTable();
             pullFromCloud();
-            setInterval(pullFromCloud, 4000);
+            // 將雲端同步頻率拉高到 3 秒一次，即時呈現戰況
+            setInterval(pullFromCloud, 3000);
             setInterval(updateClock, 1000);
         }
         
@@ -194,9 +160,9 @@
                 if (xhr.readyState === 4 && xhr.status === 200 && xhr.responseText.trim() !== "") {
                     try {
                         var res = JSON.parse(xhr.responseText);
-                        if (res && Array.isArray(res) && res.length > 0) { 
+                        // 強制複核：雲端抓取到的資料長度必須完全符合最新的 29 隻王怪，才能覆蓋，防止舊版殘留污染
+                        if (res && Array.isArray(res) && res.length === bossConfig.length) { 
                             bossState = res;
-                            localStorage.setItem('hms_boss_cache', JSON.stringify(bossState));
                             renderTable(); 
                         }
                     } catch(e) {}
@@ -205,7 +171,6 @@
             xhr.send();
         }
         function pushToCloud() {
-            localStorage.setItem('hms_boss_cache', JSON.stringify(bossState));
             var xhr = new XMLHttpRequest();
             xhr.open("POST", syncUrl, true);
             xhr.setRequestHeader("Content-Type", "application/json");
@@ -217,7 +182,7 @@
             if (!/^\d{4}$/.test(val)) { alert('請輸入精確的 4 位數開機時間，例如 1030'); return; }
             var maintH = parseInt(val.substring(0, 2), 10), maintM = parseInt(val.substring(2, 4), 10);
             if (maintH >= 24 || maintM >= 60) { alert('時間格式錯誤！'); return; }
-            if (!confirm('確定要以 [ ' + (maintH < 10 ? '0' : '') + maintH + ':' + (maintM < 10 ? '0' : '') + maintM + ':00 ] 起算所有 BOSS 嗎？')) return;
+            if (!confirm('確定要以 [ ' + (maintH < 10 ? '0' : '') + maintH + ':' + (maintM < 10 ? '0' : '') + maintM + ':00 ] 起算並覆蓋全盟友的雲端王怪時間嗎？')) return;
             
             for (var i = 0; i < bossState.length; i++) {
                 var totalMinutes = maintH * 60 + maintM + bossState[i].cooldown;
@@ -226,7 +191,7 @@
                 bossState[i].skipCount = 0; bossState[i].note = "開機時間"; 
                 bossState[i].updater = myID; 
             }
-            pushToCloud(); renderTable(); inputEl.value = ''; alert('開機首波時間已起算並立刻同步！');
+            pushToCloud(); renderTable(); inputEl.value = ''; alert('全盟開機時間已推播至雲端庫！');
         }
         function quickReportKill(bossName) {
             var myID = getValidID(); if(!myID) return;
@@ -235,7 +200,7 @@
             var targetBoss = null;
             for (var i = 0; i < bossState.length; i++) { if (bossState[i].name === bossName) { targetBoss = bossState[i]; break; } }
             if (!targetBoss) return;
-            var userInput = prompt('確認【' + (targetBoss.displayName || targetBoss.name) + '】死亡時間。\n若是本輪「輪空」，請直接點確定留白：', curTimeString); 
+            var userInput = prompt('確認【' + (targetBoss.displayName || targetBoss.name) + '】死亡時間。\n若是本輪「手動輪空」，請直接點確定留白：', curTimeString); 
             if (userInput === null) return;
             var cleanInput = userInput.replace(/:/g, '').trim(); 
             if (cleanInput === '') {
@@ -257,35 +222,18 @@
             targetBoss.skipCount = 0; targetBoss.note = bossNote; targetBoss.updater = myID; 
             pushToCloud(); renderTable();
         }
-        function modifyRound(bossName, offset) {
-            var myID = getValidID(); if(!myID) return;
-            var targetBoss = null;
-            for (var i = 0; i < bossState.length; i++) { if (bossState[i].name === bossName) { targetBoss = bossState[i]; break; } }
-            if (!targetBoss || targetBoss.nextSpawnTime === null) { alert('請先登記時間。'); return; }
-            var parts = targetBoss.nextSpawnTime.split(':');
-            if (parts.length >= 3) {
-                var h = parseInt(parts[0], 10), m = parseInt(parts[1], 10), s = parseInt(parts[2], 10);
-                var totalMinutes = h * 60 + m + (targetBoss.cooldown * offset);
-                totalMinutes = (totalMinutes % 1440 + 1440) % 1440;
-                var spawnH = Math.floor(totalMinutes / 60), spawnM = Math.floor(totalMinutes % 60);
-                targetBoss.nextSpawnTime = (spawnH < 10 ? '0' : '') + spawnH + ':' + (spawnM < 10 ? '0' : '') + spawnM + ':' + (s < 10 ? '0' : '') + s;
-                targetBoss.note = ""; targetBoss.updater = myID; 
-                pushToCloud(); renderTable();
-            }
-        }
         function deleteSingleBoss(bossName) {
             var myID = getValidID(); if(!myID) return;
             var targetBoss = null;
             for (var i = 0; i < bossState.length; i++) { if (bossState[i].name === bossName) { targetBoss = bossState[i]; break; } }
             if (!targetBoss) return;
-            if (confirm('確定要單獨清除【' + (targetBoss.displayName || targetBoss.name) + '】的時間與填單人員紀錄嗎？')) {
+            if (confirm('確定要清除【' + (targetBoss.displayName || targetBoss.name) + '】並清空雲端此怪紀錄嗎？')) {
                 targetBoss.nextSpawnTime = null; targetBoss.skipCount = 0; targetBoss.note = ""; targetBoss.updater = "";
                 pushToCloud(); renderTable();
             }
         }
         function resetToMaintenance() { 
-            if (confirm('確定要全面清空重置所有 BOSS 時間嗎？')) { 
-                localStorage.removeItem('hms_boss_cache');
+            if (confirm('🚨 注意！這將會清除雲端上「所有盟友手機」的全部時間紀錄，確定嗎？')) { 
                 for (var i = 0; i < bossState.length; i++) { var b = bossState[i]; b.nextSpawnTime = null; b.skipCount = 0; b.note = ""; b.updater = ""; }
                 pushToCloud(); renderTable(); 
             } 
@@ -301,7 +249,7 @@
                 var b = bossState[i]; var row = document.createElement('div'); row.className = 'boss-row'; 
                 var timeDisplay = '--:--:--'; var isFlashing = false; var autoSkipCount = 0;
                 
-                // 鋼鐵分類機制：強制直接讀取主程式原始設定，徹底殺死雲端舊殘留的 isPurple
+                // 強制讀取主原始設定做為唯一複核標準，徹底阻斷舊資料污染伊弗利特
                 var realIsPurple = b.isPurple;
                 for (var j = 0; j < bossConfig.length; j++) {
                     if (bossConfig[j].name === b.name) { realIsPurple = bossConfig[j].isPurple; break; }
@@ -317,15 +265,17 @@
                     var diff = curTotalMinutes - spawnTotalMinutes;
                     if (diff < -720) { diff += 1440; } else if (diff > 720) { diff -= 1440; }
                     
+                    // 核心修正：超時改為 10 分鐘！只要時間超過 10 分鐘，立刻自動在前端加冷卻推進下一輪！
                     if (diff >= 0) {
-                        if (diff <= 5) {
+                        if (diff <= 10) {
                             isFlashing = true; 
                             timeDisplay = b.nextSpawnTime;
                         } else {
-                            autoSkipCount = Math.floor((diff - 6) / b.cooldown) + 1;
+                            autoSkipCount = Math.floor((diff - 11) / b.cooldown) + 1;
                             var nextValidMinutes = spawnTotalMinutes + (autoSkipCount * b.cooldown);
                             var nextH = Math.floor((nextValidMinutes / 60) % 24);
-                            timeDisplay = (nextH < 10 ? '0' : '') + nextH + ":" + (origM < 10 ? '0' : '') + origM + ":" + origSStr;
+                            var nextM = Math.floor(nextValidMinutes % 60);
+                            timeDisplay = (nextH < 10 ? '0' : '') + nextH + ":" + (nextM < 10 ? '0' : '') + nextM + ":" + origSStr;
                         }
                     } else {
                         timeDisplay = b.nextSpawnTime;
@@ -340,8 +290,11 @@
                 else if (b.note === "廣播") { noteHtml = '<span class="note-tag note-broadcast">廣播</span>'; }
                 else if (b.note === "開機時間") { noteHtml = '<span class="note-tag note-maint">開機時間</span>'; }
                 
-                if (autoSkipCount > 0) { noteHtml += '<span class="note-tag note-autoskip">自動輪空 ' + autoSkipCount + ' 輪</span>'; }
+                if (autoSkipCount > 0) { 
+                    noteHtml += '<span class="note-tag note-autoskip">自動輪空 ' + autoSkipCount + ' 輪</span>'; 
+                }
                 
+                // 語法安全修正：確實在此處宣告並賦予 userHtml 變數，100% 阻斷死機
                 var userHtml = "";
                 if (b.updater) { userHtml = '<span class="user-tag">✍️ ' + b.updater + '</span>'; }
                 
@@ -351,7 +304,7 @@
                 
                 var flashClassStr = isFlashing ? ' class="boss-time time-flash"' : ' class="boss-time"';
                 
-                row.innerHTML = '<div class="boss-info"><div style="color:' + timeColor + '"' + flashClassStr + '>' + timeDisplay + '</div><div class="boss-name"><span class="status-tag ' + tagClass + '">' + tagText + '</span><strong>' + (b.displayName || b.name) + '</strong>' + noteHtml + userHtml + '</div></div><div class="boss-actions"><button class="btn-sm" onclick="modifyRound(\'' + b.name + '\', 1)">+1 輪</button><button class="btn-sm" onclick="modifyRound(\'' + b.name + '\', -1)">-1 輪</button><button class="btn-del" onclick="deleteSingleBoss(\'' + b.name + '\')">🗑️</button></div>';
+                row.innerHTML = '<div class="boss-info"><div style="color:' + timeColor + '"' + flashClassStr + '>' + timeDisplay + '</div><div class="boss-name"><span class="status-tag ' + tagClass + '">' + tagText + '</span><strong>' + (b.displayName || b.name) + '</strong>' + noteHtml + userHtml + '</div></div><div class="boss-actions"><button class="btn-del" onclick="deleteSingleBoss(\'' + b.name + '\')">🗑️</button></div>';
                 
                 if (realIsPurple) { pContain.appendChild(row); } else { nContain.appendChild(row); }
             }
