@@ -448,95 +448,283 @@
             var pContain = document.getElementById('purple-boss-container'),
                 nContain = document.getElementById('normal-boss-container');
 
+            if (!pContain || !nContain) return;
+
             pContain.innerHTML = '';
             nContain.innerHTML = '';
 
+            var nowMs = new Date().getTime();
+            var purpleRows = [];
+            var normalRows = [];
+
             // ------------------------------------------------------------
-            // 只改顯示順序：
-            // 依「下一次王出現時間」由近到遠排列。
-            // 紫王、一般王仍然完全分開。
-            // 尚未登記時間的王永遠排在最後。
+            // 依照「真正的下一次王時間」排序。
+            // 不改原本的倒數 / 自動輪空 / 敵吃 / 廣播 / ID 顯示邏輯。
+            // 只有最後顯示時改成「最近的在最上面」。
             // ------------------------------------------------------------
-            var sortedBossState = bossState.slice().sort(function(a, b) {
+            for (var i = 0; i < bossConfig.length; i++) {
 
-                // 沒有時間的王排最後
-                if (a.nextSpawnTime === null && b.nextSpawnTime === null) {
-                    return 0;
-                }
-
-                if (a.nextSpawnTime === null) {
-                    return 1;
-                }
-
-                if (b.nextSpawnTime === null) {
-                    return -1;
-                }
-
-                function timeToSeconds(timeString) {
-                    var parts = timeString.split(':');
-                    return (
-                        parseInt(parts[0], 10) * 3600 +
-                        parseInt(parts[1], 10) * 60 +
-                        parseInt(parts[2], 10)
-                    );
-                }
-
-                return (
-                    timeToSeconds(a.nextSpawnTime) -
-                    timeToSeconds(b.nextSpawnTime)
-                );
-            });
-
-            sortedBossState.forEach(function(b) {
-
+                var config = bossConfig[i];
                 var row = document.createElement('div');
                 row.className = 'boss-row';
 
-                var timeDisplay = b.nextSpawnTime
-                    ? b.nextSpawnTime
-                    : '--:--:--';
+                var timeDisplay = '--:--:--';
+                var isFlashing = false;
+                var updater = '';
+                var note = '';
+                var displayRounds = 0;
+                var isSkip = false;
 
-                var tagClass = b.isPurple
-                    ? 'tag-purple'
-                    : 'tag-normal';
+                // 用來排序的時間。
+                // 沒有有效時間的王會排最後。
+                var sortTime = Number.POSITIVE_INFINITY;
 
-                var tagText = b.isPurple
-                    ? '紫裝'
-                    : '一般';
+                var dataStr = bossSpawnMap[config.name];
+
+                if (dataStr && dataStr.indexOf('|') !== -1) {
+
+                    var parts = dataStr.split('|');
+                    var rawTime = parts[0];
+
+                    updater = parts[1] || '';
+                    note = parts[2] || '';
+
+                    var baseRounds =
+                        parseInt(parts[3] || '0', 10);
+
+                    if (rawTime === 'SKIP') {
+
+                        isSkip = true;
+                        timeDisplay = '手動輪空';
+
+                        // 手動輪空沒有下一次實際時間，
+                        // 排在所有有時間的王後面。
+                        sortTime = Number.POSITIVE_INFINITY;
+
+                    } else {
+
+                        var spawnTimestamp =
+                            parseInt(rawTime, 10);
+
+                        var cdMs =
+                            config.cooldown *
+                            60 *
+                            1000;
+
+                        displayRounds = baseRounds;
+
+                        if (!isNaN(spawnTimestamp)) {
+
+                            if (nowMs >= spawnTimestamp) {
+
+                                var overMs =
+                                    nowMs -
+                                    spawnTimestamp;
+
+                                var overMin =
+                                    overMs /
+                                    (60 * 1000);
+
+                                if (overMin <= 10) {
+
+                                    // 原本邏輯：王在出現後 10 分鐘內
+                                    // 顯示原本時間並閃爍。
+                                    isFlashing = true;
+
+                                } else {
+
+                                    var dynamicRounds =
+                                        Math.floor(
+                                            (overMin - 11) /
+                                            config.cooldown
+                                        ) + 1;
+
+                                    spawnTimestamp =
+                                        spawnTimestamp +
+                                        (dynamicRounds * cdMs);
+
+                                    displayRounds +=
+                                        dynamicRounds;
+                                }
+                            }
+
+                            // ★ 這個時間就是「下一次要打的時間」
+                            // 直接拿它排序，不再只比較 HH:MM:SS。
+                            sortTime = spawnTimestamp;
+
+                            var dObj =
+                                new Date(
+                                    spawnTimestamp
+                                );
+
+                            var hStr =
+                                (dObj.getHours() < 10
+                                    ? '0'
+                                    : '') +
+                                dObj.getHours();
+
+                            var mStr =
+                                (dObj.getMinutes() < 10
+                                    ? '0'
+                                    : '') +
+                                dObj.getMinutes();
+
+                            var sStr =
+                                (dObj.getSeconds() < 10
+                                    ? '0'
+                                    : '') +
+                                dObj.getSeconds();
+
+                            timeDisplay =
+                                hStr + ':' +
+                                mStr + ':' +
+                                sStr;
+                        }
+                    }
+                }
+
+                var tagClass =
+                    config.isPurple
+                        ? 'tag-purple'
+                        : 'tag-normal';
+
+                var tagText =
+                    config.isPurple
+                        ? '紫'
+                        : '一般';
+
+                var noteHtml = '';
+
+                if (note === '敵吃') {
+                    noteHtml =
+                        '<span class="note-tag note-enemy">敵吃</span>';
+                } else if (note === '廣播') {
+                    noteHtml =
+                        '<span class="note-tag note-broadcast">廣播</span>';
+                } else if (note === '開機時間') {
+                    noteHtml =
+                        '<span class="note-tag note-maint">開機時間</span>';
+                }
+
+                if (displayRounds > 0) {
+                    noteHtml +=
+                        '<span class="note-tag note-autoskip">自動輪空 ' +
+                        displayRounds +
+                        ' 輪</span>';
+                }
+
+                var userHtml = '';
+
+                if (updater) {
+                    userHtml =
+                        '<span class="user-tag">✍️ ' +
+                        updater +
+                        '</span>';
+                }
+
+                var timeColor = '#fff';
+
+                if (displayRounds > 0 || isSkip) {
+                    timeColor = '#ff4444';
+                } else if (config.isPurple && dataStr) {
+                    timeColor = 'var(--purple-theme)';
+                }
+
+                var flashClassStr =
+                    isFlashing
+                        ? ' class="boss-time time-flash"'
+                        : ' class="boss-time"';
 
                 row.innerHTML =
                     '<div class="boss-info">' +
-                        '<div class="boss-time">' +
+                        '<div style="color:' +
+                            timeColor +
+                            '"' +
+                            flashClassStr +
+                        '>' +
                             timeDisplay +
                         '</div>' +
+
                         '<div class="boss-name">' +
                             '<span class="status-tag ' +
                                 tagClass +
                             '">' +
                                 tagText +
                             '</span>' +
+
                             '<strong>' +
-                                (b.displayName || b.name) +
+                                (
+                                    config.displayName ||
+                                    config.name
+                                ) +
                             '</strong>' +
+
+                            noteHtml +
+                            userHtml +
                         '</div>' +
                     '</div>' +
 
                     '<div class="boss-actions">' +
-                        '<button class="btn-sm" onclick="modifyRound(\'' +
-                            b.name +
-                            '\', 1)">+1 輪</button>' +
-
-                        '<button class="btn-sm" onclick="modifyRound(\'' +
-                            b.name +
-                            '\', -1)">-1 輪</button>' +
+                        '<button class="btn-del" onclick="deleteSingleBoss(\'' +
+                            config.name +
+                        '\')">🗑️</button>' +
                     '</div>';
 
-                if (b.isPurple) {
-                    pContain.appendChild(row);
+                var item = {
+                    row: row,
+                    sortTime: sortTime,
+                    originalIndex: i
+                };
+
+                if (config.isPurple) {
+                    purpleRows.push(item);
                 } else {
-                    nContain.appendChild(row);
+                    normalRows.push(item);
                 }
-            });
+            }
+
+            // 最近的時間排最上面。
+            // 沒有登記時間 / 手動輪空的王排最後。
+            function sortRows(a, b) {
+
+                if (a.sortTime === b.sortTime) {
+                    return a.originalIndex -
+                           b.originalIndex;
+                }
+
+                if (
+                    a.sortTime ===
+                    Number.POSITIVE_INFINITY
+                ) {
+                    return 1;
+                }
+
+                if (
+                    b.sortTime ===
+                    Number.POSITIVE_INFINITY
+                ) {
+                    return -1;
+                }
+
+                return a.sortTime -
+                       b.sortTime;
+            }
+
+            purpleRows.sort(sortRows);
+            normalRows.sort(sortRows);
+
+            // 紫王、一般王維持完全分開。
+            for (var p = 0; p < purpleRows.length; p++) {
+                pContain.appendChild(
+                    purpleRows[p].row
+                );
+            }
+
+            for (var n = 0; n < normalRows.length; n++) {
+                nContain.appendChild(
+                    normalRows[n].row
+                );
+            }
         }
 
         window.onload = initSystem;
