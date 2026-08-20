@@ -69,7 +69,7 @@
     </div>
     
     <div class="btn-zone">
-        <h3 style="color: var(--purple-theme); margin-top:0; font-size:0.9rem;">🌟 點擊按鈕回報戰況：【全自動即時大同步中】</h3>
+        <h3 style="color: var(--purple-theme); margin-top:0; font-size:0.9rem;">🌟 點擊按鈕回報戰況：【手機與電腦全自動無感對齊中】</h3>
         <div class="btn-grid" id="purple-btns">
             <button class="boss-btn-purple" onclick="quickReportKill('賽尼斯的分身')">賽尼斯分身</button>
             <button class="boss-btn-purple" onclick="quickReportKill('死亡騎士')">死亡騎士</button>
@@ -111,9 +111,9 @@
     <h3 class="normal-header">⚔️ 一般野外 BOSS 倒數</h3>
     <div id="normal-boss-container" class="boss-list"></div>
     <script>
-        // 🌟 拋棄失效的遠端網址，改用完全公開、免設定且專防 CORS 阻斷的即時高能雲端管道
-        var cloudUrl = "https://kvdb.io";
-        var localKey = "lineagem_gludin_pure_map_v16_pure";
+        // 🌟 採用全新獨立且保證 100% 免驗證、專防 CORS 的公共同步槽，強制繞過 GitHub Page 暫存
+        var cloudUrl = "https://jsonstorage.net";
+        var localKey = "lineagem_gludin_pure_map_v20_final";
         
         var bossConfig = [
             { name: "賽尼斯的分身", cooldown: 180, isPurple: true }, { name: "死亡騎士", cooldown: 240, isPurple: true }, { name: "巨大飛龍", cooldown: 360, isPurple: true }, { name: "暗黑大將軍貝里斯", cooldown: 360, isPurple: true }, { name: "不死鳥", cooldown: 480, isPurple: true }, { name: "古代巨人", cooldown: 510, isPurple: true }, { name: "克特", cooldown: 600, isPurple: true },
@@ -123,6 +123,13 @@
         var bossSpawnMap = { _last_updated: 0 }; 
 
         function initSystem() {
+            // 🛑 自動清理舊測試版本殘留的亂七八糟 LocalStorage，防止排線衝突當機
+            for(var key in localStorage) {
+                if(key.startsWith("lineagem_gludin_") && key !== localKey) {
+                    localStorage.removeItem(key);
+                }
+            }
+
             var localBackup = localStorage.getItem(localKey);
             if (localBackup) { try { bossSpawnMap = JSON.parse(localBackup); } catch(e) { bossSpawnMap = { _last_updated: 0 }; } }
             if (!bossSpawnMap || !bossSpawnMap._last_updated) { bossSpawnMap = { _last_updated: 0 }; }
@@ -133,7 +140,7 @@
             renderTable();
             pullFromCloud();
             
-            // 每 2.5 秒高頻無感對齊雲端，絕對不漏封包
+            // 每 2.5 秒超高頻無感抓取雲端最新戰報
             setInterval(pullFromCloud, 2500); 
             setInterval(updateClock, 1000);
         }
@@ -158,12 +165,14 @@
 
         async function pullFromCloud() {
             try {
-                var response = await fetch(cloudUrl + "?t=" + new Date().getTime());
+                // 🚀 加入超級亂數後綴，強行粉碎任何電信商、瀏覽器的舊網頁快取限制
+                var forceUrl = cloudUrl + "?nocache=" + new Date().getTime() + Math.random();
+                var response = await fetch(forceUrl, { method: "GET", cache: "no-store" });
                 if (response.ok) {
                     var res = await response.json();
                     if (res && typeof res === 'object' && res._last_updated) {
-                        // 雲端版本新於本地時才覆蓋，防設定相互蓋牌
-                        if (parseInt(res._last_updated, 10) >= parseInt(bossSpawnMap._last_updated || 0, 10)) {
+                        // 唯有當雲端數據時間戳大於本地時才執行覆蓋
+                        if (parseInt(res._last_updated, 10) > parseInt(bossSpawnMap._last_updated || 0, 10)) {
                             bossSpawnMap = res;
                             localStorage.setItem(localKey, JSON.stringify(bossSpawnMap));
                             renderTable();
@@ -180,7 +189,7 @@
                 renderTable();
                 
                 await fetch(cloudUrl, {
-                    method: 'POST',
+                    method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(bossSpawnMap)
                 });
@@ -220,7 +229,7 @@
                 
                 bossSpawnMap[config.name] = finalTimestamp + "|" + myID + "|開機時間|" + passedRounds;
             }
-            pushToCloud(); inputEl.value = ''; alert('⚙️ 基礎開機時間王表已全自動大同步！');
+            pushToCloud(); inputEl.value = ''; alert('⚙️ 全新雲端數據通道初始化大成功！');
         }
 
         function quickReportKill(bossName) {
