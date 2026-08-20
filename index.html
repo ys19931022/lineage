@@ -89,7 +89,7 @@
             <button class="boss-btn-normal" onclick="quickReportKill('巨型蠕蟲(海底)')">海底蠕蟲</button>
             <button class="boss-btn-normal" onclick="quickReportKill('大黑長者')">大黑長者</button>
             <button class="boss-btn-normal" onclick="quickReportKill('85飛龍')">85飛龍</button>
-            <button class="boss-btn-normal" onclick="quickReportKill('87飛龍')">87飛龍</button>
+            <button class="boss-btn-normal" onclick="quickReportKill('87飛長')">87飛長</button>
             <button class="boss-btn-normal" onclick="quickReportKill('強盜頭目')">強盜頭目</button>
             <button class="boss-btn-normal" onclick="quickReportKill('樹精')">樹精</button>
             <button class="boss-btn-normal" onclick="quickReportKill('巨大鱷魚')">巨大鱷魚</button>
@@ -111,21 +111,21 @@
     <h3 class="normal-header">⚔️ 一般野外 BOSS 倒數</h3>
     <div id="normal-boss-container" class="boss-list"></div>
     <script>
-        // 🔒 古魯丁血盟 Pro 級獨立無限制專屬雲端通道
+        // 🚀 引進頂級資料庫防衝突機制：全裝置只聽從「最新點擊更新者」的指令，其餘背景定時器全面禁止自動上傳！
         var firebaseUrl = "https://firebaseio.com";
-        var localKey = "lineagem_gludin_pure_map_v8.0_final";
+        var localKey = "lineagem_gludin_pure_map_v9.0_master";
         
         var bossConfig = [
             { name: "賽尼斯的分身", cooldown: 180, isPurple: true }, { name: "死亡騎士", cooldown: 240, isPurple: true }, { name: "巨大飛龍", cooldown: 360, isPurple: true }, { name: "暗黑大將軍貝里斯", cooldown: 360, isPurple: true }, { name: "不死鳥", cooldown: 480, isPurple: true }, { name: "古代巨人", cooldown: 510, isPurple: true }, { name: "克特", cooldown: 600, isPurple: true },
             { name: "伊弗利特", cooldown: 120, isPurple: false }, { name: "881left飛龍", displayName: "881左飛龍", cooldown: 120, isPurple: false }, { name: "882right飛龍", displayName: "882右飛龍", cooldown: 120, isPurple: false }, { name: "綠王", cooldown: 120, isPurple: false }, { name: "紅王", cooldown: 120, isPurple: false }, { name: "四色", cooldown: 120, isPurple: false }, { name: "巨型蠕蟲(海底)", cooldown: 120, isPurple: false }, { name: "大黑長者", cooldown: 180, isPurple: false }, { name: "85飛龍", cooldown: 180, isPurple: false }, { name: "87飛龍", cooldown: 180, isPurple: false }, { name: "強盜頭目", cooldown: 180, isPurple: false }, { name: "樹精", cooldown: 180, isPurple: false }, { name: "巨大鱷魚", cooldown: 180, isPurple: false }, { name: "大腳瑪幽", cooldown: 180, isPurple: false }, { name: "變形怪首領", cooldown: 210, isPurple: false }, { name: "巨大守護螞蟻", cooldown: 210, isPurple: false }, { name: "奈克諾斯", cooldown: 240, isPurple: false }, { name: "蜘蛛", cooldown: 240, isPurple: false }, { name: "力卡溫", cooldown: 480, isPurple: false }, { name: "惡魔監視者", cooldown: 360, isPurple: false }, { name: "烏勒庫斯", cooldown: 360, isPurple: false }, { name: "卡司特王", cooldown: 450, isPurple: false }
         ];
         
-        var bossSpawnMap = {}; 
+        var bossSpawnMap = { _last_updated: 0 }; 
 
         function initSystem() {
             var localBackup = localStorage.getItem(localKey);
-            if (localBackup) { try { bossSpawnMap = JSON.parse(localBackup); } catch(e) { bossSpawnMap = {}; } }
-            if (!bossSpawnMap) { bossSpawnMap = {}; }
+            if (localBackup) { try { bossSpawnMap = JSON.parse(localBackup); } catch(e) { bossSpawnMap = { _last_updated: 0 }; } }
+            if (!bossSpawnMap || !bossSpawnMap._last_updated) { bossSpawnMap = { _last_updated: 0 }; }
             
             var savedID = localStorage.getItem('hms_user_id');
             if(savedID) { document.getElementById('user-id-input').value = savedID; }
@@ -133,8 +133,8 @@
             renderTable();
             pullFromCloud();
             
-            // 每 2.5 秒進行雲端資料大交換
-            setInterval(pullFromCloud, 2500); 
+            // 每 2 秒進行「純拉取」雲端最新動態，絕不放任未操作的裝置上去自動洗掉資料！
+            setInterval(pullFromCloud, 2000); 
             setInterval(updateClock, 1000);
         }
         
@@ -156,32 +156,34 @@
             renderTable();
         }
 
+        // 🌟 邏輯大革命：自動輪詢只做拉取，且嚴格對比時間戳記！只有當雲端版本更新時才覆蓋本機！
         async function pullFromCloud() {
             try {
                 var antiCacheUrl = firebaseUrl + "?nocache=" + new Date().getTime() + Math.random();
                 var response = await fetch(antiCacheUrl, { cache: "no-store", headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' } });
                 if (response.ok) {
                     var res = await response.json();
-                    if (res && typeof res === 'object') {
-                        var isCloudEmpty = true;
-                        for (var k in res) { if(res[k]) { isCloudEmpty = false; break; } }
-                        
-                        if (!isCloudEmpty) {
+                    if (res && typeof res === 'object' && res._last_updated) {
+                        // 只有當雲端上的時間戳記大於或等於本機，本機才接受更新（防範未經操作的手機定時器倒灌空資料）
+                        if (parseInt(res._last_updated, 10) >= parseInt(bossSpawnMap._last_updated || 0, 10)) {
                             bossSpawnMap = res;
                             localStorage.setItem(localKey, JSON.stringify(bossSpawnMap));
                             renderTable();
-                        } else {
-                            var hasLocal = false;
-                            for (var k in bossSpawnMap) { if(bossSpawnMap[k]) { hasLocal = true; break; } }
-                            if(hasLocal) { pushToCloud(); }
                         }
+                    } else if (!res) {
+                        // 如果雲端完全是空的（被全面重置了），且本機有資料，才由有資料的這台主動送上去
+                        var hasData = false;
+                        for(var k in bossSpawnMap) { if(k !== '_last_updated' && bossSpawnMap[k]) { hasData = true; break; } }
+                        if(hasData) { forcePushToCloud(); }
                     }
                 }
             } catch(e) {}
         }
         
-        async function pushToCloud() {
+        // 🌟 只有點擊按鈕、回報時間時，才呼叫這個函數強制推高時間戳記上傳
+        async function forcePushToCloud() {
             try {
+                bossSpawnMap._last_updated = new Date().getTime(); // 強制推高本機版本號，宣告自己是最新王者
                 localStorage.setItem(localKey, JSON.stringify(bossSpawnMap));
                 await fetch(firebaseUrl, {
                     method: 'PUT',
@@ -207,7 +209,7 @@
             if (!confirm('確認要以開機時間起算並同步全盟嗎？')) return;
             
             var nowMs = now.getTime();
-            bossSpawnMap = {}; 
+            bossSpawnMap = { _last_updated: nowMs }; 
             
             for (var i = 0; i < bossConfig.length; i++) {
                 var config = bossConfig[i];
@@ -225,7 +227,7 @@
                 
                 bossSpawnMap[config.name] = finalTimestamp + "|" + myID + "|開機時間|" + passedRounds;
             }
-            pushToCloud(); inputEl.value = ''; alert('⚙️ 雲端與本地已強制雙向打通！');
+            forcePushToCloud(); inputEl.value = ''; alert('⚙️ 雲端結構打包鎖定！');
         }
 
         function quickReportKill(bossName) {
@@ -239,7 +241,7 @@
             var cleanInput = userInput.replace(/:/g, '').trim(); 
             if (cleanInput === '') {
                 bossSpawnMap[bossName] = "SKIP|" + myID + "||0";
-                pushToCloud(); return;
+                forcePushToCloud(); return;
             }
             
             var killH, killM, killS = 0;
@@ -254,7 +256,7 @@
             var nextSpawn = targetDate.getTime() + (getCooldown(bossName) * 60 * 1000);
             
             bossSpawnMap[bossName] = nextSpawn + "|" + myID + "|" + bossNote + "|0";
-            pushToCloud();
+            forcePushToCloud();
         }
         
         function getCooldown(name) {
@@ -265,14 +267,14 @@
             var myID = getValidID(); if(!myID) return;
             if (confirm('確定要清除【' + bossName + '】的紀錄嗎？')) {
                 bossSpawnMap[bossName] = "";
-                pushToCloud();
+                forcePushToCloud();
             }
         }
         
         function resetToMaintenance() { 
             if (confirm('🚨 注意！這將會強制清空雲端與本地的所有數據，確認嗎？')) { 
-                bossSpawnMap = {};
-                pushToCloud(); 
+                bossSpawnMap = { _last_updated: new Date().getTime() };
+                forcePushToCloud(); 
             } 
         }
         
@@ -293,7 +295,6 @@
                 if (dataStr && dataStr.indexOf('|') !== -1) {
                     var parts = dataStr.split('|');
                     
-                    // 🌟 【史詩級涅槃修正】：利用文字型函數完全替代括號索引，徹底封死 Markdown 語法吞噬漏洞！
                     var rawTime = parts.shift(); 
                     if(parts.length > 0) updater = parts.shift();
                     if(parts.length > 0) note = parts.shift();
