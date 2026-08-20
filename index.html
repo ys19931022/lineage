@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow, noarchive">
     <title>天堂M 新篇章2.0 古魯丁專屬王表</title>
     <style>
         :root { --bg-color: #121212; --card-bg: #1e1e1e; --gold-theme: #ffd700; --purple-theme: #b388ff; --text-color: #e0e0e0; --border-color: #333; }
@@ -288,9 +289,84 @@
 
         @keyframes flash-warning { 0% { color: #ffd700; opacity: 1; } 50% { color: #ff5722; opacity: 0.4; } 100% { color: #ffd700; opacity: 1; } }
         .time-flash { animation: flash-warning 1s infinite; font-weight: 900; text-shadow: 0 0 5px rgba(255,87,34,0.6); }
-    </style>
+    
+        /* 🔐 血盟專屬驗證：未驗證前隱藏王表 */
+        #alliance-lock {
+            position: fixed;
+            inset: 0;
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(8, 8, 12, 0.97);
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .lock-card {
+            width: min(420px, 100%);
+            background: #1e1e1e;
+            border: 1px solid #b388ff;
+            border-radius: 14px;
+            padding: 28px 22px;
+            box-shadow: 0 0 30px rgba(179, 136, 255, 0.25);
+            text-align: center;
+        }
+        .lock-title {
+            color: #ffd700;
+            font-size: 1.45rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .lock-subtitle {
+            color: #bbb;
+            font-size: 0.9rem;
+            margin-bottom: 18px;
+        }
+        #alliance-code {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #555;
+            background: #101010;
+            color: #fff;
+            text-align: center;
+            font-size: 1.2rem;
+            letter-spacing: 0.25em;
+            outline: none;
+        }
+        #alliance-code:focus { border-color: #b388ff; }
+        #alliance-unlock {
+            width: 100%;
+            margin-top: 12px;
+            padding: 11px;
+            border: 0;
+            border-radius: 8px;
+            background: #b388ff;
+            color: #111;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        #alliance-error {
+            min-height: 20px;
+            margin-top: 10px;
+            color: #ff667d;
+            font-size: 0.85rem;
+            font-weight: bold;
+        }
+</style>
 </head>
 <body>
+    <div id="alliance-lock">
+        <div class="lock-card">
+            <div class="lock-title">🔐 古魯丁血盟專屬王表</div>
+            <div class="lock-subtitle">請輸入血盟專屬驗證碼後使用</div>
+            <input id="alliance-code" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="輸入 6 位驗證碼">
+            <button id="alliance-unlock" type="button" onclick="unlockAlliance()">進入王表</button>
+            <div id="alliance-error"></div>
+        </div>
+    </div>
+
     <h2>🕒 天堂M 新篇章2.0 古魯丁專屬王表</h2>
     <div id="standard-clock" class="time-marquee">🇹🇼 中原標準時間 ➔ ⏳ 系統校時中...</div>
 
@@ -384,7 +460,45 @@
         ];
 
         
-        var bossSpawnMap = {}; 
+        var bossSpawnMap = {};
+
+        // 🔐 血盟專屬驗證碼
+        // 注意：這是「網站入口驗證」，不是 Firebase 的真正安全規則。
+        // 真正要阻止他人直接呼叫 Firebase API，仍需搭配 Firebase Authentication / Rules。
+        var ALLIANCE_CODE = "666666";
+        var ALLIANCE_AUTH_KEY = "gludin_alliance_verified_v1";
+
+        function unlockAlliance() {
+            var input = document.getElementById('alliance-code');
+            var error = document.getElementById('alliance-error');
+            var code = (input.value || '').trim();
+
+            if (code === ALLIANCE_CODE) {
+                localStorage.setItem(ALLIANCE_AUTH_KEY, '1');
+                document.getElementById('alliance-lock').style.display = 'none';
+                error.textContent = '';
+                initSystem();
+            } else {
+                error.textContent = '❌ 驗證碼錯誤，請重新輸入。';
+                input.value = '';
+                input.focus();
+            }
+        }
+
+        function startAllianceGate() {
+            var lock = document.getElementById('alliance-lock');
+            var input = document.getElementById('alliance-code');
+            if (localStorage.getItem(ALLIANCE_AUTH_KEY) === '1') {
+                lock.style.display = 'none';
+                initSystem();
+                return;
+            }
+            lock.style.display = 'flex';
+            input.focus();
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') unlockAlliance();
+            });
+        }
 
         function initSystem() {
             var localBackup = localStorage.getItem(localKey);
@@ -1148,7 +1262,7 @@
             }
         }
 
-        window.onload = initSystem;
+        window.onload = startAllianceGate;
     </script>
 </body>
 </html>
