@@ -85,7 +85,7 @@
             <button class="boss-btn-normal" onclick="quickReportKill('巨型蠕蟲(海底)')">海底蠕蟲</button>
             <button class="boss-btn-normal" onclick="quickReportKill('大黑長者')">大黑長者</button>
             <button class="boss-btn-normal" onclick="quickReportKill('85飛龍')">85飛龍</button>
-            <button class="boss-btn-normal" onclick="quickReportKill('87飛龍')">87飛龍</button>
+            <button class="boss-btn-normal" onclick="quickReportKill('87飛長')">87飛龍</button>
             <button class="boss-btn-normal" onclick="quickReportKill('強盜頭目')">強盜頭目</button>
             <button class="boss-btn-normal" onclick="quickReportKill('樹精')">樹精</button>
             <button class="boss-btn-normal" onclick="quickReportKill('巨大鱷魚')">巨大鱷魚</button>
@@ -107,11 +107,9 @@
     <h3 class="normal-header">⚔️ 一般野外 BOSS 倒數</h3>
     <div id="normal-boss-container" class="boss-list"></div>
     <script>
-        // 拋棄限制重重的 KVDB，全面切換至完美跨域（CORS）的公共大池 Jsonbin.io
         var binId = "66c43be5ad19ca34f899bf95"; 
         var pullUrl = "https://jsonbin.io" + binId + "/latest";
         var pushUrl = "https://jsonbin.io" + binId;
-        // 使用公共免費用戶讀寫密鑰進行網頁層級的強制解鎖
         var masterKey = "$2a$10$w6D0jP3F7Rcl54p3tB5x9e7X.H9WzB3u736gY4k8x8gD72h4mCdmS"; 
         
         var bossConfig = [
@@ -119,6 +117,10 @@
             { name: "伊弗利特", cooldown: 120, isPurple: false }, { name: "881left飛龍", displayName: "881左飛龍", cooldown: 120, isPurple: false }, { name: "882right飛龍", displayName: "882右飛龍", cooldown: 120, isPurple: false }, { name: "綠王", cooldown: 120, isPurple: false }, { name: "紅王", cooldown: 120, isPurple: false }, { name: "四色", cooldown: 120, isPurple: false }, { name: "巨型蠕蟲(海底)", cooldown: 120, isPurple: false }, { name: "大黑長者", cooldown: 180, isPurple: false }, { name: "85飛龍", cooldown: 180, isPurple: false }, { name: "87飛龍", cooldown: 180, isPurple: false }, { name: "強盜頭目", cooldown: 180, isPurple: false }, { name: "樹精", cooldown: 180, isPurple: false }, { name: "巨大鱷魚", cooldown: 180, isPurple: false }, { name: "大腳瑪幽", cooldown: 180, isPurple: false }, { name: "變形怪首領", cooldown: 210, isPurple: false }, { name: "巨大守護螞蟻", cooldown: 210, isPurple: false }, { name: "奈克諾斯", cooldown: 240, isPurple: false }, { name: "蜘蛛", cooldown: 240, isPurple: false }, { name: "力卡溫", cooldown: 480, isPurple: false }, { name: "惡魔監視者", cooldown: 360, isPurple: false }, { name: "烏勒庫斯", cooldown: 360, isPurple: false }, { name: "卡司特王", cooldown: 450, isPurple: false }
         ];
         var bossState = [];
+        
+        // ⚔️ 【超重要：鋼鐵非同步守護鎖】
+        // 只要雲端的真實資料還沒 100% 下載成功覆蓋本地，就絕對不准定時器畫畫面，徹底堵死空白快取！
+        var hasPulledOnce = false; 
 
         function initSystem() {
             bossState = [];
@@ -130,8 +132,13 @@
             var savedID = localStorage.getItem('hms_user_id');
             if(savedID) { document.getElementById('user-id-input').value = savedID; }
             
+            // 剛啟動時，在雲端還沒回應前，先用初始空白框架畫一次（至少讓畫面不崩潰）
             renderTable();
+            
+            // 開始向雲端要真實資料
             pullFromCloud();
+            
+            // 設定循環監聽
             setInterval(pullFromCloud, 3000);
             setInterval(updateClock, 1000);
         }
@@ -153,10 +160,14 @@
             var timeStr = (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
             var clockEl = document.getElementById('standard-clock');
             if(clockEl) { clockEl.innerText = "🇹🇼 中原標準時間 ➔ " + timeStr; }
-            renderTable();
+            
+            // ⚔️ 守護鎖核心控制：只有當雲端資料成功進來過一次後，每秒的時鐘才允許刷新下方的列表！
+            // 這能確保在重新整理、網路還在延遲加載的 0.5 秒內，網頁不會用空白資料強行洗掉畫面！
+            if (hasPulledOnce) {
+                renderTable();
+            }
         }
 
-        // 強效抓取：經 Jsonbin 認證過的標準跨域讀取，並附帶亂數戳打穿緩存
         function pullFromCloud() {
             var xhr = new XMLHttpRequest();
             xhr.open("GET", pullUrl + "?nocache=" + new Date().getTime(), true);
@@ -165,9 +176,9 @@
                 if (xhr.readyState === 4 && xhr.status === 200) {
                     try {
                         var res = JSON.parse(xhr.responseText);
-                        // Jsonbin 的主要數據會包裹在 .record 欄位中
                         if (res && res.record && Array.isArray(res.record) && res.record.length === bossConfig.length) { 
                             bossState = res.record;
+                            hasPulledOnce = true; // 🌟 雲端數據已成功寫入，正式解除畫面鎖定！
                             renderTable(); 
                         }
                     } catch(e) {}
@@ -176,12 +187,13 @@
             xhr.send();
         }
         
-        // 強效寫入：使用瀏覽器 100% 准許跨域發送的 PUT 語法打上 Jsonbin 雲端，鐵印鎖定
         function pushToCloud() {
             var xhr = new XMLHttpRequest();
             xhr.open("PUT", pushUrl, true);
             xhr.setRequestHeader("Content-Type", "application/json");
             xhr.setRequestHeader("X-Master-Key", masterKey);
+            // 操作時本地端直接視為已完成同步，確保填單體驗流暢
+            hasPulledOnce = true; 
             xhr.send(JSON.stringify(bossState));
             renderTable(); 
         }
@@ -200,7 +212,7 @@
                 bossState[i].skipCount = 0; bossState[i].note = "開機時間"; 
                 bossState[i].updater = myID; 
             }
-            pushToCloud(); inputEl.value = ''; alert('全盟開機時間已透過跨域管道成功寫入雲端數據中心！');
+            pushToCloud(); inputEl.value = ''; alert('全盟開機時間已儲存至雲端中心！');
         }
         function quickReportKill(bossName) {
             var myID = getValidID(); if(!myID) return;
@@ -265,9 +277,9 @@
                 
                 if (b.nextSpawnTime) {
                     var rawParts = b.nextSpawnTime.split(':');
-                    var origH = parseInt(rawParts[0], 10);
-                    var origM = parseInt(rawParts[1], 10);
-                    var origSStr = rawParts[2] ? rawParts[2].substring(0, 2) : "00"; 
+                    var origH = parseInt(rawParts, 10);
+                    var origM = parseInt(rawParts, 10);
+                    var origSStr = rawParts ? rawParts.substring(0, 2) : "00"; 
                     var spawnTotalMinutes = origH * 60 + origM;
                     
                     var diff = curTotalMinutes - spawnTotalMinutes;
