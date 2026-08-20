@@ -85,7 +85,7 @@
             <button class="boss-btn-normal" onclick="quickReportKill('巨型蠕蟲(海底)')">海底蠕蟲</button>
             <button class="boss-btn-normal" onclick="quickReportKill('大黑長者')">大黑長者</button>
             <button class="boss-btn-normal" onclick="quickReportKill('85飛龍')">85飛龍</button>
-            <button class="boss-btn-normal" onclick="quickReportKill('87飛龍')">87飛龍</button>
+            <button class="boss-btn-normal" onclick="quickReportKill('87飛長')">87飛龍</button>
             <button class="boss-btn-normal" onclick="quickReportKill('強盜頭目')">強盜頭目</button>
             <button class="boss-btn-normal" onclick="quickReportKill('樹精')">樹精</button>
             <button class="boss-btn-normal" onclick="quickReportKill('巨大鱷魚')">巨大鱷魚</button>
@@ -107,7 +107,7 @@
     <h3 class="normal-header">⚔️ 一般野外 BOSS 倒數</h3>
     <div id="normal-boss-container" class="boss-list"></div>
     <script>
-        // 指派全新 3.0 極速高架雲端同步專區路徑
+        // 開設全新的真儲存雲端通道，避免舊的殘留錯誤覆蓋
         var syncUrl = "https://kvdb.io";
         
         var bossConfig = [
@@ -115,7 +115,6 @@
             { name: "伊弗利特", cooldown: 120, isPurple: false }, { name: "881left飛龍", displayName: "881左飛龍", cooldown: 120, isPurple: false }, { name: "882right飛龍", displayName: "882右飛龍", cooldown: 120, isPurple: false }, { name: "綠王", cooldown: 120, isPurple: false }, { name: "紅王", cooldown: 120, isPurple: false }, { name: "四色", cooldown: 120, isPurple: false }, { name: "巨型蠕蟲(海底)", cooldown: 120, isPurple: false }, { name: "大黑長者", cooldown: 180, isPurple: false }, { name: "85飛龍", cooldown: 180, isPurple: false }, { name: "87飛龍", cooldown: 180, isPurple: false }, { name: "強盜頭目", cooldown: 180, isPurple: false }, { name: "樹精", cooldown: 180, isPurple: false }, { name: "巨大鱷魚", cooldown: 180, isPurple: false }, { name: "大腳瑪幽", cooldown: 180, isPurple: false }, { name: "變形怪首領", cooldown: 210, isPurple: false }, { name: "巨大守護螞蟻", cooldown: 210, isPurple: false }, { name: "奈克諾斯", cooldown: 240, isPurple: false }, { name: "蜘蛛", cooldown: 240, isPurple: false }, { name: "力卡溫", cooldown: 480, isPurple: false }, { name: "惡魔監視者", cooldown: 360, isPurple: false }, { name: "烏勒庫斯", cooldown: 360, isPurple: false }, { name: "卡司特王", cooldown: 450, isPurple: false }
         ];
         var bossState = [];
-        var isCloudLoaded = false; 
 
         function initSystem() {
             bossState = [];
@@ -127,7 +126,6 @@
             var savedID = localStorage.getItem('hms_user_id');
             if(savedID) { document.getElementById('user-id-input').value = savedID; }
             
-            // 鐵血修正：初始化時，先准許拿本地生成的乾淨結構畫出列表，絕對防止空白死機！
             renderTable();
             pullFromCloud();
             setInterval(pullFromCloud, 3000);
@@ -151,8 +149,6 @@
             var timeStr = (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
             var clockEl = document.getElementById('standard-clock');
             if(clockEl) { clockEl.innerText = "🇹🇼 中原標準時間 ➔ " + timeStr; }
-            
-            // 只要系統開啟，就維持每秒刷新時間與自動輪空演算
             renderTable();
         }
 
@@ -165,24 +161,21 @@
                     if (text !== "") {
                         try {
                             var res = JSON.parse(text);
-                            // 只有雲端資料結構完整、且與最新名單長度一致時，才進行覆蓋更新
                             if (res && Array.isArray(res) && res.length === bossConfig.length) { 
                                 bossState = res;
-                                isCloudLoaded = true;
                                 renderTable(); 
                             }
                         } catch(e) {}
-                    } else {
-                        // 核心死結破解點：如果雲端回傳完全空白（如首次連線），就視為初次啟用，不鎖死
-                        isCloudLoaded = true;
                     }
                 }
             };
             xhr.send();
         }
+        
+        // 核心鐵血修正：改為唯一支援的 PUT 語法，真正實現把時間打進雲端烙印！
         function pushToCloud() {
             var xhr = new XMLHttpRequest();
-            xhr.open("POST", syncUrl, true);
+            xhr.open("PUT", syncUrl, true);
             xhr.setRequestHeader("Content-Type", "application/json");
             xhr.send(JSON.stringify(bossState));
             renderTable(); 
@@ -202,7 +195,7 @@
                 bossState[i].skipCount = 0; bossState[i].note = "開機時間"; 
                 bossState[i].updater = myID; 
             }
-            pushToCloud(); inputEl.value = ''; alert('全盟開機時間已推播至雲端庫並即時重新渲染！');
+            pushToCloud(); inputEl.value = ''; alert('全盟開機時間已使用 PUT 送入雲端！');
         }
         function quickReportKill(bossName) {
             var myID = getValidID(); if(!myID) return;
@@ -260,7 +253,6 @@
                 var b = bossState[i]; var row = document.createElement('div'); row.className = 'boss-row'; 
                 var timeDisplay = '--:--:--'; var isFlashing = false; var autoSkipCount = 0;
                 
-                // 強制讀取本地主設定配置為唯一分類標準，徹底阻斷伊弗利特任何變紫色的路徑
                 var realIsPurple = b.isPurple;
                 for (var j = 0; j < bossConfig.length; j++) {
                     if (bossConfig[j].name === b.name) { realIsPurple = bossConfig[j].isPurple; break; }
@@ -268,15 +260,14 @@
                 
                 if (b.nextSpawnTime) {
                     var rawParts = b.nextSpawnTime.split(':');
-                    var origH = parseInt(rawParts[0], 10);
-                    var origM = parseInt(rawParts[1], 10);
-                    var origSStr = rawParts[2] ? rawParts[2].substring(0, 2) : "00"; 
+                    var origH = parseInt(rawParts, 10);
+                    var origM = parseInt(rawParts, 10);
+                    var origSStr = rawParts ? rawParts.substring(0, 2) : "00"; 
                     var spawnTotalMinutes = origH * 60 + origM;
                     
                     var diff = curTotalMinutes - spawnTotalMinutes;
                     if (diff < -720) { diff += 1440; } else if (diff > 720) { diff -= 1440; }
                     
-                    // 10分鐘超時自動輪空推算核心
                     if (diff >= 0) {
                         if (diff <= 10) {
                             isFlashing = true; 
