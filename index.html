@@ -89,7 +89,7 @@
             <button class="boss-btn-normal" onclick="quickReportKill('巨型蠕蟲(海底)')">海底蠕蟲</button>
             <button class="boss-btn-normal" onclick="quickReportKill('大黑長者')">大黑長者</button>
             <button class="boss-btn-normal" onclick="quickReportKill('85飛龍')">85飛龍</button>
-            <button class="boss-btn-normal" onclick="quickReportKill('87飛龍')">87飛長</button>
+            <button class="boss-btn-normal" onclick="quickReportKill('87飛龍')">87飛龍</button>
             <button class="boss-btn-normal" onclick="quickReportKill('強盜頭目')">強盜頭目</button>
             <button class="boss-btn-normal" onclick="quickReportKill('樹精')">樹精</button>
             <button class="boss-btn-normal" onclick="quickReportKill('巨大鱷魚')">巨大鱷魚</button>
@@ -111,9 +111,9 @@
     <h3 class="normal-header">⚔️ 一般野外 BOSS 倒數</h3>
     <div id="normal-boss-container" class="boss-list"></div>
     <script>
-        // 🌟 核心修正：啟用全新解鎖防火牆權限的古魯丁專屬 Firebase 即時通訊通道
+        // 🔒 雙重融合防線：微軟/Google級 Modern Fetch 核心，全面撕裂任何手機快取阻斷
         var firebaseUrl = "https://firebaseio.com";
-        var localKey = "lineagem_gludin_pure_map_v6.5";
+        var localKey = "lineagem_gludin_pure_map_v7.0";
         
         var bossConfig = [
             { name: "賽尼斯的分身", cooldown: 180, isPurple: true }, { name: "死亡騎士", cooldown: 240, isPurple: true }, { name: "巨大飛龍", cooldown: 360, isPurple: true }, { name: "暗黑大將軍貝里斯", cooldown: 360, isPurple: true }, { name: "不死鳥", cooldown: 480, isPurple: true }, { name: "古代巨人", cooldown: 510, isPurple: true }, { name: "克特", cooldown: 600, isPurple: true },
@@ -124,9 +124,7 @@
 
         function initSystem() {
             var localBackup = localStorage.getItem(localKey);
-            if (localBackup) {
-                try { bossSpawnMap = JSON.parse(localBackup); } catch(e) { bossSpawnMap = {}; }
-            }
+            if (localBackup) { try { bossSpawnMap = JSON.parse(localBackup); } catch(e) { bossSpawnMap = {}; } }
             if (!bossSpawnMap) { bossSpawnMap = {}; }
             
             var savedID = localStorage.getItem('hms_user_id');
@@ -135,7 +133,7 @@
             renderTable();
             pullFromCloud();
             
-            // 每 2 秒進行高頻雙向雲端同步
+            // 手機高頻極速拉取線，縮短至 2 秒
             setInterval(pullFromCloud, 2000); 
             setInterval(updateClock, 1000);
         }
@@ -158,40 +156,41 @@
             renderTable();
         }
 
-        function pullFromCloud() {
-            var xhr = new XMLHttpRequest();
-            xhr.open("GET", firebaseUrl, true);
-            xhr.onreadystatechange = function() {
-                if (xhr.readyState === 4 && xhr.status === 200) {
-                    try {
-                        var res = JSON.parse(xhr.responseText);
-                        if (res && typeof res === 'object') {
-                            var isCloudEmpty = true;
-                            for (var k in res) { if(res[k]) { isCloudEmpty = false; break; } }
-                            
-                            if (!isCloudEmpty) {
-                                bossSpawnMap = res;
-                                localStorage.setItem(localKey, JSON.stringify(bossSpawnMap));
-                                renderTable();
-                            } else {
-                                var hasLocal = false;
-                                for (var k in bossSpawnMap) { if(bossSpawnMap[k]) { hasLocal = true; break; } }
-                                if(hasLocal) { pushToCloud(); }
-                            }
+        // 🌟 核心破壁修正：使用現代 Fetch 搭配爆破型無快取網址戳記，強制手機與雲端 100% 互通
+        async function pullFromCloud() {
+            try {
+                var antiCacheUrl = firebaseUrl + "?nocache=" + new Date().getTime() + Math.random();
+                var response = await fetch(antiCacheUrl, { cache: "no-store", headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' } });
+                if (response.ok) {
+                    var res = await response.json();
+                    if (res && typeof res === 'object') {
+                        var isCloudEmpty = true;
+                        for (var k in res) { if(res[k]) { isCloudEmpty = false; break; } }
+                        
+                        if (!isCloudEmpty) {
+                            bossSpawnMap = res;
+                            localStorage.setItem(localKey, JSON.stringify(bossSpawnMap));
+                            renderTable();
+                        } else {
+                            var hasLocal = false;
+                            for (var k in bossSpawnMap) { if(bossSpawnMap[k]) { hasLocal = true; break; } }
+                            if(hasLocal) { pushToCloud(); }
                         }
-                    } catch(e) {}
+                    }
                 }
-            };
-            xhr.send();
+            } catch(e) { console.log("讀取中斷，兩秒後自動重試"); }
         }
         
-        function pushToCloud() {
-            localStorage.setItem(localKey, JSON.stringify(bossSpawnMap));
-            var xhr = new XMLHttpRequest();
-            xhr.open("PUT", firebaseUrl, true);
-            xhr.setRequestHeader("Content-Type", "application/json");
-            xhr.send(JSON.stringify(bossSpawnMap));
-            renderTable(); 
+        async function pushToCloud() {
+            try {
+                localStorage.setItem(localKey, JSON.stringify(bossSpawnMap));
+                await fetch(firebaseUrl, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(bossSpawnMap)
+                });
+                renderTable(); 
+            } catch(e) { alert("⚠️ 網路封包上傳失敗，請確認手機網路訊號！"); }
         }
         function setMaintenanceTime() {
             var myID = getValidID(); if(!myID) return;
@@ -227,7 +226,7 @@
                 
                 bossSpawnMap[config.name] = finalTimestamp + "|" + myID + "|開機時間|" + passedRounds;
             }
-            pushToCloud(); inputEl.value = ''; alert('⚙️ 雲端已全面放行！已成功同步全體盟友王表！');
+            pushToCloud(); inputEl.value = ''; alert('⚙️ 雲端與本地已強制雙向打通！');
         }
 
         function quickReportKill(bossName) {
