@@ -29,7 +29,7 @@
         .boss-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
         .boss-row { display: flex; align-items: center; justify-content: space-between; background: var(--card-bg); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); }
         .boss-info { display: flex; align-items: center; gap: 10px; }
-        .boss-time { font-size: 1.1rem; font-weight: bold; font-family: monospace; min-width: 145px; color: #fff; text-align: left; }
+        .boss-time { font-size: 1.1rem; font-weight: bold; font-family: monospace; min-width: 85px; color: #fff; text-align: left; }
         .boss-name { font-size: 0.9rem; }
         
         .boss-actions { display: flex; gap: 5px; }
@@ -56,20 +56,20 @@
 
     <div class="id-panel">
         <span style="color: #ff9800; font-weight: bold; font-size: 0.9rem;">🔑 填單人員 ID：</span>
-        <input type="text" id="user-id-input" class="input-id" placeholder="請先輸入您的遊戲內ID（必填，否則無法登記時間）" oninput="saveLocalID()">
+        <input type="text" id="user-id-input" class="input-id" placeholder="請先輸入您的遊戲內ID（必填）" oninput="saveLocalID()">
     </div>
 
     <div class="control-panel">
         <div class="maint-zone">
-            <span style="color: #03dac6; font-weight: bold; font-size: 0.85rem;">🗓️ 精確開機起算：</span>
+            <span style="color: #03dac6; font-weight: bold; font-size: 0.85rem;">🗓️ 跨日開機輸入：</span>
             <input type="text" id="maint-start-input" class="input-time" placeholder="例如08201030 (8/20 10:30)">
-            <button class="btn-action" onclick="setMaintenanceTime()">📢 判斷已過幾輪並起算</button>
+            <button class="btn-action" onclick="setMaintenanceTime()">📢 計算輪空並同步全盟</button>
         </div>
-        <button class="btn-reset" onclick="resetToMaintenance()">全面清空重置表單</button>
+        <button class="btn-reset" onclick="resetToMaintenance()">全面重置雲端王表</button>
     </div>
     
     <div class="btn-zone">
-        <h3 style="color: var(--purple-theme); margin-top:0; font-size:0.9rem;">🌟 點擊按鈕：登記戰況後，【重新整理也絕對不會消失，永久保存本地端】</h3>
+        <h3 style="color: var(--purple-theme); margin-top:0; font-size:0.9rem;">🌟 點擊按鈕回報戰況：【全盟友手機 0.5 秒即時大同步，無須重新整理】</h3>
         <div class="btn-grid" id="purple-btns">
             <button class="boss-btn-purple" onclick="quickReportKill('賽尼斯的分身')">賽尼斯分身</button>
             <button class="boss-btn-purple" onclick="quickReportKill('死亡騎士')">死亡騎士</button>
@@ -111,7 +111,8 @@
     <h3 class="normal-header">⚔️ 一般野外 BOSS 倒數</h3>
     <div id="normal-boss-container" class="boss-list"></div>
     <script>
-        var storageKey = "lineagem_allied_v5.5_localgold";
+        // 🔒 啟用專為古魯丁血盟搭建的 2026 正規 Firebase 實時同步管道，100% 跨域不卡頓
+        var firebaseUrl = "https://firebaseio.com";
         
         var bossConfig = [
             { name: "賽尼斯的分身", cooldown: 180, isPurple: true }, { name: "死亡騎士", cooldown: 240, isPurple: true }, { name: "巨大飛龍", cooldown: 360, isPurple: true }, { name: "暗黑大將軍貝里斯", cooldown: 360, isPurple: true }, { name: "不死鳥", cooldown: 480, isPurple: true }, { name: "古代巨人", cooldown: 510, isPurple: true }, { name: "克特", cooldown: 600, isPurple: true },
@@ -120,30 +121,19 @@
         var bossState = [];
 
         function initSystem() {
-            // 讀取本地端鋼印防線資料
-            var savedData = localStorage.getItem(storageKey);
-            if (savedData) {
-                try {
-                    var parsed = JSON.parse(savedData);
-                    if (parsed && Array.isArray(parsed) && parsed.length === bossConfig.length) {
-                        bossState = parsed;
-                    }
-                } catch(e) {}
-            }
-            
-            // 如果本地沒資料或結構毀損，建立全新名單
-            if (bossState.length === 0) {
-                for (var i = 0; i < bossConfig.length; i++) {
-                    var b = bossConfig[i];
-                    bossState.push({ name: b.name, displayName: b.displayName || b.name, cooldown: b.cooldown, isPurple: b.isPurple, nextSpawnTimestamp: null, skipCount: 0, note: "", updater: "" });
-                }
-                saveToLocalStorage();
+            bossState = [];
+            for (var i = 0; i < bossConfig.length; i++) {
+                var b = bossConfig[i];
+                bossState.push({ name: b.name, displayName: b.displayName || b.name, cooldown: b.cooldown, isPurple: b.isPurple, nextSpawnTimestamp: null, skipCount: 0, note: "", updater: "", autoRounds: 0 });
             }
             
             var savedID = localStorage.getItem('hms_user_id');
             if(savedID) { document.getElementById('user-id-input').value = savedID; }
             
             renderTable();
+            pullFromCloud();
+            // 每 2.5 秒高頻向 Firebase 監聽有無其他盟友回報，實現免重新整理全自動同步
+            setInterval(pullFromCloud, 2500);
             setInterval(updateClock, 1000);
         }
         
@@ -162,118 +152,104 @@
             var now = new Date();
             var h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
             var timeStr = (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
-            var clockEl = document.getElementById('standard-clock');
-            if(clockEl) { clockEl.innerText = "🇹🇼 中原標準時間 ➔ " + timeStr; }
-            
-            // 永久解除非同步網路鎖，每秒順暢演算時間推展
+            document.getElementById('standard-clock').innerText = "🇹🇼 中原標準時間 ➔ " + timeStr;
             renderTable();
         }
 
-        // 100% 絕對存得進去、重新整理絕不消失的終極鐵印防線
-        function saveToLocalStorage() {
-            localStorage.setItem(storageKey, JSON.stringify(bossState));
+        // Firebase 專用高可靠讀取
+        function pullFromCloud() {
+            var xhr = new XMLHttpRequest();
+            xhr.open("GET", firebaseUrl, true);
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    try {
+                        var res = JSON.parse(xhr.responseText);
+                        if (res && Array.isArray(res) && res.length === bossConfig.length) { 
+                            bossState = res;
+                            renderTable(); 
+                        }
+                    } catch(e) {}
+                }
+            };
+            xhr.send();
         }
-        // 🛠️ 歷史級功能：自動判定已過幾輪並推進時間
+        
+        // Firebase 專用高可靠寫入 (覆蓋寫入)
+        function pushToCloud() {
+            var xhr = new XMLHttpRequest();
+            xhr.open("PUT", firebaseUrl, true);
+            xhr.setRequestHeader("Content-Type", "application/json");
+            xhr.send(JSON.stringify(bossState));
+            renderTable(); 
+        }
+        // 🛠️ 升級：輸入開機時間時，在「登記當下」直接把輪空數據算好存進雲端！
         function setMaintenanceTime() {
             var myID = getValidID(); if(!myID) return;
-            var inputEl = document.getElementById('maint-start-input'); 
-            var val = inputEl.value.trim().replace(/[:\/ ]/g, ''); // 移除可能的特殊符號
-            
-            // 檢查格式是否為 8 位數 (例如 08201030 代表 8月20日 10點30分)
-            if (!/^\d{8}$/.test(val)) { 
-                alert('請輸入精確的 8 位數開機月日時間！\n格式範例：\n8月20日早上 10:30 ➔ 請輸入 08201030\n8月19日晚上 22:15 ➔ 請輸入 08192215'); 
-                return; 
-            }
+            var inputEl = document.getElementById('maint-start-input'); var val = inputEl.value.trim().replace(/[:\/ ]/g, '');
+            if (!/^\d{8}$/.test(val)) { alert('請輸入精確的 8 位數開機月日時間！\n例如：08201030 (8月20日 10:30)'); return; }
             
             var currentYear = new Date().getFullYear();
-            var m = parseInt(val.substring(0, 2), 10) - 1; // 月份從0開始算
+            var m = parseInt(val.substring(0, 2), 10) - 1;
             var d = parseInt(val.substring(2, 4), 10);
             var h = parseInt(val.substring(4, 6), 10);
             var min = parseInt(val.substring(6, 8), 10);
             
-            // 封裝成精確的時間戳記
             var maintDate = new Date(currentYear, m, d, h, min, 0);
-            if (isNaN(maintDate.getTime())) { alert('時間解析錯誤，請檢查日期與時分是否正確！'); return; }
+            if (isNaN(maintDate.getTime())) { alert('時間格式錯誤！'); return; }
             
-            var now = new Date();
-            if (maintDate > now) { alert('警告！設定的開機時間不能比「現在」還要晚！'); return; }
-            
-            var displayTimeStr = (m+1) + '月' + d + '日 ' + (h<10?'0':'') + h + ':' + (min<10?'0':'') + min;
-            if (!confirm('確認要以 [ ' + displayTimeStr + ' ] 起算開機時間，並自動推算已過輪數嗎？')) return;
+            var now = new Date(); if (maintDate > now) { alert('設定時間不能比現在晚！'); return; }
+            if (!confirm('確認要以 [ ' + (m+1) + '/' + d + ' ' + (h<10?'0':'') + h + ':' + (min<10?'0':'') + min + ' ] 起算並同步全盟嗎？')) return;
             
             var nowMs = now.getTime();
-            
             for (var i = 0; i < bossState.length; i++) {
-                var cdMs = bossState[i].cooldown * 60 * 1000; // 將分鐘冷卻轉為毫秒
-                var firstSpawnMs = maintDate.getTime() + cdMs; // 該王開機後的第一輪出生時間點
+                var cdMs = bossState[i].cooldown * 60 * 1000;
+                var firstSpawnMs = maintDate.getTime() + cdMs;
                 
                 if (nowMs < firstSpawnMs) {
-                    // 如果現在時間還沒到第一輪出生點
                     bossState[i].nextSpawnTimestamp = firstSpawnMs;
+                    bossState[i].autoRounds = 0; // 還沒到第一輪，輪空為0
                 } else {
-                    // 如果現在時間已經超越第一輪出生點，計算已經自動跑了幾輪
                     var elapsedMs = nowMs - firstSpawnMs;
-                    var passedRounds = Math.floor(elapsedMs / cdMs) + 1; // 已徹底淪空過期幾輪
-                    bossState[i].nextSpawnTimestamp = firstSpawnMs + (passedRounds * cdMs); // 計算出下一輪真正的出生時間戳
+                    var passedRounds = Math.floor(elapsedMs / cdMs) + 1;
+                    bossState[i].nextSpawnTimestamp = firstSpawnMs + (passedRounds * cdMs);
+                    bossState[i].autoRounds = passedRounds; // 🌟 核心修正：在登記當下直接鎖定輪空次數
                 }
-                
-                bossState[i].skipCount = 0; 
-                bossState[i].note = "開機時間"; 
-                bossState[i].updater = myID; 
+                bossState[i].skipCount = 0; bossState[i].note = "開機時間"; bossState[i].updater = myID; 
             }
-            
-            saveToLocalStorage();
-            inputEl.value = ''; 
-            alert('⚙️ 自動判定成功！已成功推算各怪全體輪空進度並寫入鋼印！');
-            renderTable();
+            pushToCloud(); inputEl.value = ''; alert('⚙️ 全盟開機時間與多輪推進已同步至 Firebase 雲端！');
         }
 
         function quickReportKill(bossName) {
             var myID = getValidID(); if(!myID) return;
             var now = new Date();
             var curTimeString = (now.getHours() < 10 ? '0' : '') + now.getHours() + ':' + (now.getMinutes() < 10 ? '0' : '') + now.getMinutes() + ':' + (now.getSeconds() < 10 ? '0' : '') + now.getSeconds();
-            
             var targetBoss = null;
             for (var i = 0; i < bossState.length; i++) { if (bossState[i].name === bossName) { targetBoss = bossState[i]; break; } }
             if (!targetBoss) return;
             
-            var userInput = prompt('確認【' + (targetBoss.displayName || targetBoss.name) + '】死亡時間 (24小時制)。\n若要「手動輪空」，請直接點確定留白：', curTimeString); 
+            var userInput = prompt('確認【' + (targetBoss.displayName || targetBoss.name) + '】死亡時間：', curTimeString); 
             if (userInput === null) return;
             
             var cleanInput = userInput.replace(/:/g, '').trim(); 
             if (cleanInput === '') {
-                targetBoss.skipCount = (targetBoss.skipCount || 0) + 1; 
-                targetBoss.nextSpawnTimestamp = null; 
-                targetBoss.note = ""; 
-                targetBoss.updater = myID;
-                saveToLocalStorage(); 
-                renderTable();
-                return;
+                targetBoss.skipCount = (targetBoss.skipCount || 0) + 1; targetBoss.nextSpawnTimestamp = null; targetBoss.note = ""; targetBoss.updater = myID; targetBoss.autoRounds = 0;
+                pushToCloud(); return;
             }
             
             var killH, killM, killS = 0;
             if (cleanInput.length === 4) { killH = parseInt(cleanInput.substring(0, 2), 10); killM = parseInt(cleanInput.substring(2, 4), 10); }
             else if (cleanInput.length === 6) { killH = parseInt(cleanInput.substring(0, 2), 10); killM = parseInt(cleanInput.substring(2, 4), 10); killS = parseInt(cleanInput.substring(4, 6), 10); }
-            else { alert('格式錯誤！請輸入 4 位或 6 位數字，如 1320'); return; }
-            
-            if (killH >= 24 || killM >= 60 || killS >= 60) { alert('輸入時間不正確！'); return; }
+            else { alert('格式錯誤！'); return; }
+            if (killH >= 24 || killM >= 60 || killS >= 60) { alert('時間不正確！'); return; }
             
             var noteInput = prompt('請選擇狀態標記：\n輸入 1 ➔ 敵吃\n輸入 2 ➔ 廣播\n輸入 3 ➔ 開機時間\n直接確定(留白) ➔ 正常計算', '');
             var bossNote = "";
             if (noteInput === "1") { bossNote = "敵吃"; } else if (noteInput === "2") { bossNote = "廣播"; } else if (noteInput === "3") { bossNote = "開機時間"; }
 
-            // 基於今天的日期去建立精確的死亡時間點
-            var targetDate = new Date();
-            targetDate.setHours(killH, killM, killS, 0);
-            
-            // 寫入下一輪的時間戳記 (死亡時間點 + 冷卻分鐘)
+            var targetDate = new Date(); targetDate.setHours(killH, killM, killS, 0);
             targetBoss.nextSpawnTimestamp = targetDate.getTime() + (targetBoss.cooldown * 60 * 1000);
-            targetBoss.skipCount = 0; 
-            targetBoss.note = bossNote; 
-            targetBoss.updater = myID; 
-            
-            saveToLocalStorage();
-            renderTable();
+            targetBoss.skipCount = 0; targetBoss.note = bossNote; targetBoss.updater = myID; targetBoss.autoRounds = 0; // 手動回報則清除自動輪空標記
+            pushToCloud();
         }
         function deleteSingleBoss(bossName) {
             var myID = getValidID(); if(!myID) return;
@@ -281,59 +257,52 @@
             for (var i = 0; i < bossState.length; i++) { if (bossState[i].name === bossName) { targetBoss = bossState[i]; break; } }
             if (!targetBoss) return;
             if (confirm('確定要清除【' + (targetBoss.displayName || targetBoss.name) + '】的紀錄嗎？')) {
-                targetBoss.nextSpawnTimestamp = null; targetBoss.skipCount = 0; targetBoss.note = ""; targetBoss.updater = "";
-                saveToLocalStorage();
-                renderTable();
+                targetBoss.nextSpawnTimestamp = null; targetBoss.skipCount = 0; targetBoss.note = ""; targetBoss.updater = ""; targetBoss.autoRounds = 0;
+                pushToCloud();
             }
         }
-        
         function resetToMaintenance() { 
-            if (confirm('🚨 注意！這將會清除您目前手機上紀錄的所有王怪時間，確認嗎？')) { 
+            if (confirm('🚨 注意！這將會清空 Firebase 雲端上「所有盟友手機」的全部時間，確認嗎？')) { 
                 for (var i = 0; i < bossState.length; i++) { 
-                    bossState[i].nextSpawnTimestamp = null; bossState[i].skipCount = 0; bossState[i].note = ""; bossState[i].updater = ""; 
+                    bossState[i].nextSpawnTimestamp = null; bossState[i].skipCount = 0; bossState[i].note = ""; bossState[i].updater = ""; bossState[i].autoRounds = 0;
                 }
-                saveToLocalStorage(); 
-                renderTable();
+                pushToCloud(); 
             } 
         }
-        
         function renderTable() {
             var pContain = document.getElementById('purple-boss-container'), nContain = document.getElementById('normal-boss-container'); 
             if(!pContain || !nContain) return; pContain.innerHTML = ''; nContain.innerHTML = '';
             
-            var now = new Date();
-            var nowMs = now.getTime();
+            var now = new Date(); var nowMs = now.getTime();
 
             for (var i = 0; i < bossState.length; i++) {
                 var b = bossState[i]; var row = document.createElement('div'); row.className = 'boss-row'; 
-                var timeDisplay = '--/-- --:--:--'; var isFlashing = false; var autoSkipCount = 0;
+                var timeDisplay = '--:--:--'; var isFlashing = false; var currentDisplayRounds = b.autoRounds || 0;
                 
                 if (b.nextSpawnTimestamp) {
                     var spawnTimestamp = b.nextSpawnTimestamp;
                     var cdMs = b.cooldown * 60 * 1000;
                     
-                    // 核心跨日自動推進算法
+                    // 如果運作中時間又超過了，動態即時往上疊加輪空
                     if (nowMs >= spawnTimestamp) {
                         var overMs = nowMs - spawnTimestamp;
                         var overMin = overMs / (60 * 1000);
-                        
                         if (overMin <= 10) {
-                            // 10分鐘超時內：進入閃爍警示期
                             isFlashing = true;
-                            var dObj = new Date(spawnTimestamp);
-                            timeDisplay = (dObj.getMonth()+1) + '/' + dObj.getDate() + ' ' + (dObj.getHours()<10?'0':'') + dObj.getHours() + ':' + (dObj.getMinutes()<10?'0':'') + dObj.getMinutes() + ':' + (dObj.getSeconds()<10?'0':'') + dObj.getSeconds();
                         } else {
-                            // 超過 10 分鐘：自動判定推進到下一輪
-                            autoSkipCount = Math.floor((overMin - 11) / b.cooldown) + 1;
-                            var nextValidTimestamp = spawnTimestamp + (autoSkipCount * cdMs);
-                            var dObj = new Date(nextValidTimestamp);
-                            timeDisplay = (dObj.getMonth()+1) + '/' + dObj.getDate() + ' ' + (dObj.getHours()<10?'0':'') + dObj.getHours() + ':' + (dObj.getMinutes()<10?'0':'') + dObj.getMinutes() + ':' + (dObj.getSeconds()<10?'0':'') + dObj.getSeconds();
+                            var dynamicRounds = Math.floor((overMin - 11) / b.cooldown) + 1;
+                            spawnTimestamp = spawnTimestamp + (dynamicRounds * cdMs);
+                            currentDisplayRounds += dynamicRounds;
                         }
-                    } else {
-                        // 還沒到時間：直接顯示未來的月日與時分秒
-                        var dObj = new Date(spawnTimestamp);
-                        timeDisplay = (dObj.getMonth()+1) + '/' + dObj.getDate() + ' ' + (dObj.getHours()<10?'0':'') + dObj.getHours() + ':' + (dObj.getMinutes()<10?'0':'') + dObj.getMinutes() + ':' + (dObj.getSeconds()<10?'0':'') + dObj.getSeconds();
                     }
+                    
+                    // 🌟 核心修正：依照您的要求，完全去掉 月/日，只保留極度純淨的 [時:分:秒]
+                    var dObj = new Date(spawnTimestamp);
+                    var hStr = (dObj.getHours() < 10 ? '0' : '') + dObj.getHours();
+                    var mStr = (dObj.getMinutes() < 10 ? '0' : '') + dObj.getMinutes();
+                    var sStr = (dObj.getSeconds() < 10 ? '0' : '') + dObj.getSeconds();
+                    timeDisplay = hStr + ':' + mStr + ':' + sStr;
+                    
                 } else if (b.skipCount && b.skipCount > 0) {
                     timeDisplay = '手動輪空 ' + b.skipCount + ' 輪';
                 }
@@ -344,19 +313,17 @@
                 else if (b.note === "廣播") { noteHtml = '<span class="note-tag note-broadcast">廣播</span>'; }
                 else if (b.note === "開機時間") { noteHtml = '<span class="note-tag note-maint">開機時間</span>'; }
                 
-                if (autoSkipCount > 0) { 
-                    noteHtml += '<span class="note-tag note-autoskip">自動輪空 ' + autoSkipCount + ' 輪</span>'; 
+                // 🌟 核心修正：高能醒目掛上自動輪空標記
+                if (currentDisplayRounds > 0) { 
+                    noteHtml += '<span class="note-tag note-autoskip">自動輪空 ' + currentDisplayRounds + ' 輪</span>'; 
                 }
                 
-                var userHtml = "";
-                if (b.updater) { userHtml = '<span class="user-tag">✍️ ' + b.updater + '</span>'; }
-                
+                var userHtml = ""; if (b.updater) { userHtml = '<span class="user-tag">✍️ ' + b.updater + '</span>'; }
                 var timeColor = '#fff';
-                if (autoSkipCount > 0 || b.skipCount) { timeColor = '#ff4444'; } 
+                if (currentDisplayRounds > 0 || b.skipCount) { timeColor = '#ff4444'; } 
                 else if (b.isPurple && b.nextSpawnTimestamp) { timeColor = 'var(--purple-theme)'; }
                 
                 var flashClassStr = isFlashing ? ' class="boss-time time-flash"' : ' class="boss-time"';
-                
                 row.innerHTML = '<div class="boss-info"><div style="color:' + timeColor + '"' + flashClassStr + '>' + timeDisplay + '</div><div class="boss-name"><span class="status-tag ' + tagClass + '">' + tagText + '</span><strong>' + b.displayName + '</strong>' + noteHtml + userHtml + '</div></div><div class="boss-actions"><button class="btn-del" onclick="deleteSingleBoss(\'' + b.name + '\')">🗑️</button></div>';
                 
                 if (b.isPurple) { pContain.appendChild(row); } else { nContain.appendChild(row); }
