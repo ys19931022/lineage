@@ -114,7 +114,7 @@
         // 🚀 【終極重大升級】：已全面將舊的有流量上限的節點拋棄，更換為古魯丁血盟專用的全新高級企業高速伺服器
         // ☁️【全盟同步設定】
         // 請填入你的 Firebase Realtime Database URL。
-        var firebaseUrl = "https://YOUR-PROJECT-default-rtdb.asia-southeast1.firebasedatabase.app";
+        var firebaseUrl = "https://lineagem-1022-default-rtdb.asia-southeast1.firebasedatabase.app";
         var firebasePath = "/gludin/bossSpawnMap";
         var localKey = "lineagem_gludin_pure_map_v7.5_pro";
         var realtimeSource = null;
@@ -138,7 +138,7 @@
             pullFromCloud();
             startRealtimeSync();
             
-            // 每 2.5 秒超高頻拋接全新雲端管道
+            // 每 30 秒補抓一次完整資料，作為即時同步的斷線保險
             setInterval(pullFromCloud, 30000); 
             setInterval(updateClock, 1000);
         }
