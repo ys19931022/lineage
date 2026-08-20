@@ -12,6 +12,11 @@
         .normal-header { color: #03dac6; border-bottom: 2px solid #03dac6; padding-bottom: 5px; }
         .time-marquee { background: #311b92; color: #ffd700; font-family: monospace; font-size: 1.3rem; font-weight: bold; text-align: center; padding: 8px; border-radius: 6px; margin-bottom: 12px; border: 1px solid var(--purple-theme); box-shadow: 0 0 10px rgba(179, 136, 255, 0.3); }
         
+        /* 🌟 同步面板外觀 */
+        .sync-panel { background: linear-gradient(135deg, #0d47a1, #002171); padding: 12px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #1e88e5; }
+        .sync-row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+        .input-sync { padding: 8px 12px; background: #000; border: 1px solid #1e88e5; color: #82b1ff; border-radius: 4px; font-size: 0.85rem; flex-grow: 1; font-family: monospace; }
+        
         .id-panel { background: linear-gradient(135deg, #2c1a04, #1a1103); padding: 12px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #ff9800; display: flex; align-items: center; gap: 10px; }
         .input-id { padding: 8px 12px; background: #000; border: 1px solid #ff9800; color: #ffd700; border-radius: 4px; font-weight: bold; font-size: 0.95rem; flex-grow: 1; }
         
@@ -19,6 +24,7 @@
         .maint-zone { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
         .input-time { padding: 8px 10px; background: #121212; border: 1px solid #555; color: #fff; border-radius: 4px; font-family: monospace; font-size: 0.9rem; width: 140px; text-align: center; }
         .btn-action { background: #03dac6; color: #000; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.85rem; }
+        .btn-sync-action { background: #ffd700; color: #000; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.85rem; }
         .btn-reset { background: #cf6679; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.85rem; }
         
         .btn-zone { background: var(--card-bg); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid var(--border-color); }
@@ -54,6 +60,16 @@
     <h2>🕒 天堂M 新篇章2.0 古魯丁專屬王表</h2>
     <div id="standard-clock" class="time-marquee">🇹🇼 中原標準時間 ➔ ⏳ 系統校時中...</div>
 
+    <!-- 🌟 全盟一鍵無損快速同步面板 -->
+    <div class="sync-panel">
+        <div style="color: #ffd700; font-weight: bold; font-size: 0.9rem;">🔗 跨載具王表極速大同步：</div>
+        <div class="sync-row">
+            <input type="text" id="sync-code-io" class="input-sync" placeholder="📊 回報完後點右邊「導出碼」，或在此貼上盟友的代碼點「導入」">
+            <button class="btn-sync-action" onclick="exportSyncCode()">📋 導出碼</button>
+            <button class="btn-action" onclick="importSyncCode()">📥 貼上並導入</button>
+        </div>
+    </div>
+
     <div class="id-panel">
         <span style="color: #ff9800; font-weight: bold; font-size: 0.9rem;">🔑 填單人員 ID：</span>
         <input type="text" id="user-id-input" class="input-id" placeholder="請先輸入您的遊戲內ID（必填）" oninput="saveLocalID()">
@@ -63,13 +79,13 @@
         <div class="maint-zone">
             <span style="color: #03dac6; font-weight: bold; font-size: 0.85rem;">🗓️ 跨日開機輸入：</span>
             <input type="text" id="maint-start-input" class="input-time" placeholder="例如08201030 (8/20 10:30)">
-            <button class="btn-action" onclick="setMaintenanceTime()">📢 計算輪空並同步全盟</button>
+            <button class="btn-action" onclick="setMaintenanceTime()">📢 計算輪空並同步</button>
         </div>
-        <button class="btn-reset" onclick="resetToMaintenance()">全面重置雲端王表</button>
+        <button class="btn-reset" onclick="resetToMaintenance()">全面重置本地王表</button>
     </div>
     
     <div class="btn-zone">
-        <h3 style="color: var(--purple-theme); margin-top:0; font-size:0.9rem;">🌟 點擊按鈕回報戰況：【全盟友手機 0.5 秒即時大同步，無須重新整理】</h3>
+        <h3 style="color: var(--purple-theme); margin-top:0; font-size:0.9rem;">🌟 點擊按鈕回報戰況：</h3>
         <div class="btn-grid" id="purple-btns">
             <button class="boss-btn-purple" onclick="quickReportKill('賽尼斯的分身')">賽尼斯分身</button>
             <button class="boss-btn-purple" onclick="quickReportKill('死亡騎士')">死亡騎士</button>
@@ -89,7 +105,7 @@
             <button class="boss-btn-normal" onclick="quickReportKill('巨型蠕蟲(海底)')">海底蠕蟲</button>
             <button class="boss-btn-normal" onclick="quickReportKill('大黑長者')">大黑長者</button>
             <button class="boss-btn-normal" onclick="quickReportKill('85飛龍')">85飛龍</button>
-            <button class="boss-btn-normal" onclick="quickReportKill('87飛長')">87飛長</button>
+            <button class="boss-btn-normal" onclick="quickReportKill('87飛龍')">87飛龍</button>
             <button class="boss-btn-normal" onclick="quickReportKill('強盜頭目')">強盜頭目</button>
             <button class="boss-btn-normal" onclick="quickReportKill('樹精')">樹精</button>
             <button class="boss-btn-normal" onclick="quickReportKill('巨大鱷魚')">巨大鱷魚</button>
@@ -111,30 +127,24 @@
     <h3 class="normal-header">⚔️ 一般野外 BOSS 倒數</h3>
     <div id="normal-boss-container" class="boss-list"></div>
     <script>
-        // 🚀 引進頂級資料庫防衝突機制：全裝置只聽從「最新點擊更新者」的指令，其餘背景定時器全面禁止自動上傳！
-        var firebaseUrl = "https://firebaseio.com";
-        var localKey = "lineagem_gludin_pure_map_v9.0_master";
+        var localKey = "lineagem_gludin_pure_map_v10.0_local";
         
         var bossConfig = [
             { name: "賽尼斯的分身", cooldown: 180, isPurple: true }, { name: "死亡騎士", cooldown: 240, isPurple: true }, { name: "巨大飛龍", cooldown: 360, isPurple: true }, { name: "暗黑大將軍貝里斯", cooldown: 360, isPurple: true }, { name: "不死鳥", cooldown: 480, isPurple: true }, { name: "古代巨人", cooldown: 510, isPurple: true }, { name: "克特", cooldown: 600, isPurple: true },
             { name: "伊弗利特", cooldown: 120, isPurple: false }, { name: "881left飛龍", displayName: "881左飛龍", cooldown: 120, isPurple: false }, { name: "882right飛龍", displayName: "882右飛龍", cooldown: 120, isPurple: false }, { name: "綠王", cooldown: 120, isPurple: false }, { name: "紅王", cooldown: 120, isPurple: false }, { name: "四色", cooldown: 120, isPurple: false }, { name: "巨型蠕蟲(海底)", cooldown: 120, isPurple: false }, { name: "大黑長者", cooldown: 180, isPurple: false }, { name: "85飛龍", cooldown: 180, isPurple: false }, { name: "87飛龍", cooldown: 180, isPurple: false }, { name: "強盜頭目", cooldown: 180, isPurple: false }, { name: "樹精", cooldown: 180, isPurple: false }, { name: "巨大鱷魚", cooldown: 180, isPurple: false }, { name: "大腳瑪幽", cooldown: 180, isPurple: false }, { name: "變形怪首領", cooldown: 210, isPurple: false }, { name: "巨大守護螞蟻", cooldown: 210, isPurple: false }, { name: "奈克諾斯", cooldown: 240, isPurple: false }, { name: "蜘蛛", cooldown: 240, isPurple: false }, { name: "力卡溫", cooldown: 480, isPurple: false }, { name: "惡魔監視者", cooldown: 360, isPurple: false }, { name: "烏勒庫斯", cooldown: 360, isPurple: false }, { name: "卡司特王", cooldown: 450, isPurple: false }
         ];
         
-        var bossSpawnMap = { _last_updated: 0 }; 
+        var bossSpawnMap = {}; 
 
         function initSystem() {
             var localBackup = localStorage.getItem(localKey);
-            if (localBackup) { try { bossSpawnMap = JSON.parse(localBackup); } catch(e) { bossSpawnMap = { _last_updated: 0 }; } }
-            if (!bossSpawnMap || !bossSpawnMap._last_updated) { bossSpawnMap = { _last_updated: 0 }; }
+            if (localBackup) { try { bossSpawnMap = JSON.parse(localBackup); } catch(e) { bossSpawnMap = {}; } }
+            if (!bossSpawnMap) { bossSpawnMap = {}; }
             
             var savedID = localStorage.getItem('hms_user_id');
             if(savedID) { document.getElementById('user-id-input').value = savedID; }
             
             renderTable();
-            pullFromCloud();
-            
-            // 每 2 秒進行「純拉取」雲端最新動態，絕不放任未操作的裝置上去自動洗掉資料！
-            setInterval(pullFromCloud, 2000); 
             setInterval(updateClock, 1000);
         }
         
@@ -150,48 +160,50 @@
         }
         
         function updateClock() {
-            var now = new Date();
-            var h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
-            document.getElementById('standard-clock').innerText = "🇹🇼 中原標準時間 ➔ " + (h<10?'0':'')+h + ':' + (m<10?'0':'')+m + ':' + (s<10?'0':'')+s;
             renderTable();
         }
 
-        // 🌟 邏輯大革命：自動輪詢只做拉取，且嚴格對比時間戳記！只有當雲端版本更新時才覆蓋本機！
-        async function pullFromCloud() {
+        // 🌟 10.0 核心黑科技：免伺服器，安全高速文字化加密大同步
+        function exportSyncCode() {
             try {
-                var antiCacheUrl = firebaseUrl + "?nocache=" + new Date().getTime() + Math.random();
-                var response = await fetch(antiCacheUrl, { cache: "no-store", headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' } });
-                if (response.ok) {
-                    var res = await response.json();
-                    if (res && typeof res === 'object' && res._last_updated) {
-                        // 只有當雲端上的時間戳記大於或等於本機，本機才接受更新（防範未經操作的手機定時器倒灌空資料）
-                        if (parseInt(res._last_updated, 10) >= parseInt(bossSpawnMap._last_updated || 0, 10)) {
-                            bossSpawnMap = res;
-                            localStorage.setItem(localKey, JSON.stringify(bossSpawnMap));
-                            renderTable();
-                        }
-                    } else if (!res) {
-                        // 如果雲端完全是空的（被全面重置了），且本機有資料，才由有資料的這台主動送上去
-                        var hasData = false;
-                        for(var k in bossSpawnMap) { if(k !== '_last_updated' && bossSpawnMap[k]) { hasData = true; break; } }
-                        if(hasData) { forcePushToCloud(); }
-                    }
+                var jsonStr = JSON.stringify(bossSpawnMap);
+                // 使用內建 Base64 算法將全盟資料壓縮成一串純文字代碼
+                var encodedCode = btoa(encodeURIComponent(jsonStr));
+                var ioEl = document.getElementById('sync-code-io');
+                ioEl.value = encodedCode;
+                ioEl.select();
+                ioEl.setSelectionRange(0, 99999);
+                navigator.clipboard.writeText(encodedCode);
+                alert("📋 【古魯丁同步碼導出成功】！\n已自動複製到剪貼簿。請直接貼到 LINE 群組發給全盟友！");
+            } catch(e) {
+                alert("導出失敗，請確認是否填寫了資料。");
+            }
+        }
+
+        function importSyncCode() {
+            var ioEl = document.getElementById('sync-code-io');
+            var code = ioEl.value.trim();
+            if(!code) { alert("❌ 請先貼上盟友產出的同步碼代碼！"); return; }
+            try {
+                var decodedStr = decodeURIComponent(atob(code));
+                var parsedObj = JSON.parse(decodedStr);
+                if(parsedObj && typeof parsedObj === 'object') {
+                    bossSpawnMap = parsedObj;
+                    localStorage.setItem(localKey, JSON.stringify(bossSpawnMap));
+                    renderTable();
+                    ioEl.value = "";
+                    alert("📥 【王表大同步成功】！數據已瞬間完美無縫對齊！");
+                } else {
+                    alert("❌ 同步碼格式不符！");
                 }
-            } catch(e) {}
+            } catch(e) {
+                alert("❌ 導入失敗！請確認複製的同步碼是否完整！");
+            }
         }
         
-        // 🌟 只有點擊按鈕、回報時間時，才呼叫這個函數強制推高時間戳記上傳
-        async function forcePushToCloud() {
-            try {
-                bossSpawnMap._last_updated = new Date().getTime(); // 強制推高本機版本號，宣告自己是最新王者
-                localStorage.setItem(localKey, JSON.stringify(bossSpawnMap));
-                await fetch(firebaseUrl, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(bossSpawnMap)
-                });
-                renderTable(); 
-            } catch(e) {}
+        function saveToLocal() {
+            localStorage.setItem(localKey, JSON.stringify(bossSpawnMap));
+            renderTable();
         }
         function setMaintenanceTime() {
             var myID = getValidID(); if(!myID) return;
@@ -206,10 +218,10 @@
             if (isNaN(maintDate.getTime())) { alert('時間格式錯誤！'); return; }
             
             var now = new Date(); if (maintDate > now) { alert('設定時間不能比現在晚！'); return; }
-            if (!confirm('確認要以開機時間起算並同步全盟嗎？')) return;
+            if (!confirm('確認要以開機時間起算嗎？')) return;
             
             var nowMs = now.getTime();
-            bossSpawnMap = { _last_updated: nowMs }; 
+            bossSpawnMap = {}; 
             
             for (var i = 0; i < bossConfig.length; i++) {
                 var config = bossConfig[i];
@@ -227,7 +239,7 @@
                 
                 bossSpawnMap[config.name] = finalTimestamp + "|" + myID + "|開機時間|" + passedRounds;
             }
-            forcePushToCloud(); inputEl.value = ''; alert('⚙️ 雲端結構打包鎖定！');
+            saveToLocal(); inputEl.value = ''; alert('⚙️ 基礎開機時間王表本地計算完畢！\n點選「導出碼」即可一鍵分享全盟同步！');
         }
 
         function quickReportKill(bossName) {
@@ -241,7 +253,7 @@
             var cleanInput = userInput.replace(/:/g, '').trim(); 
             if (cleanInput === '') {
                 bossSpawnMap[bossName] = "SKIP|" + myID + "||0";
-                forcePushToCloud(); return;
+                saveToLocal(); return;
             }
             
             var killH, killM, killS = 0;
@@ -256,7 +268,7 @@
             var nextSpawn = targetDate.getTime() + (getCooldown(bossName) * 60 * 1000);
             
             bossSpawnMap[bossName] = nextSpawn + "|" + myID + "|" + bossNote + "|0";
-            forcePushToCloud();
+            saveToLocal();
         }
         
         function getCooldown(name) {
@@ -267,14 +279,14 @@
             var myID = getValidID(); if(!myID) return;
             if (confirm('確定要清除【' + bossName + '】的紀錄嗎？')) {
                 bossSpawnMap[bossName] = "";
-                forcePushToCloud();
+                saveToLocal();
             }
         }
         
         function resetToMaintenance() { 
-            if (confirm('🚨 注意！這將會強制清空雲端與本地的所有數據，確認嗎？')) { 
-                bossSpawnMap = { _last_updated: new Date().getTime() };
-                forcePushToCloud(); 
+            if (confirm('🚨 注意！這將會強制清空本地的所有數據，確認嗎？')) { 
+                bossSpawnMap = {};
+                saveToLocal(); 
             } 
         }
         
