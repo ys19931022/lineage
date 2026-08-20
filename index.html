@@ -107,7 +107,7 @@
     <h3 class="normal-header">⚔️ 一般野外 BOSS 倒數</h3>
     <div id="normal-boss-container" class="boss-list"></div>
     <script>
-        // 啟用全新防洗掉機制之資料庫儲存點
+        // 指派全新 3.0 極速高架雲端同步專區路徑
         var syncUrl = "https://kvdb.io";
         
         var bossConfig = [
@@ -115,7 +115,6 @@
             { name: "伊弗利特", cooldown: 120, isPurple: false }, { name: "881left飛龍", displayName: "881左飛龍", cooldown: 120, isPurple: false }, { name: "882right飛龍", displayName: "882右飛龍", cooldown: 120, isPurple: false }, { name: "綠王", cooldown: 120, isPurple: false }, { name: "紅王", cooldown: 120, isPurple: false }, { name: "四色", cooldown: 120, isPurple: false }, { name: "巨型蠕蟲(海底)", cooldown: 120, isPurple: false }, { name: "大黑長者", cooldown: 180, isPurple: false }, { name: "85飛龍", cooldown: 180, isPurple: false }, { name: "87飛龍", cooldown: 180, isPurple: false }, { name: "強盜頭目", cooldown: 180, isPurple: false }, { name: "樹精", cooldown: 180, isPurple: false }, { name: "巨大鱷魚", cooldown: 180, isPurple: false }, { name: "大腳瑪幽", cooldown: 180, isPurple: false }, { name: "變形怪首領", cooldown: 210, isPurple: false }, { name: "巨大守護螞蟻", cooldown: 210, isPurple: false }, { name: "奈克諾斯", cooldown: 240, isPurple: false }, { name: "蜘蛛", cooldown: 240, isPurple: false }, { name: "力卡溫", cooldown: 480, isPurple: false }, { name: "惡魔監視者", cooldown: 360, isPurple: false }, { name: "烏勒庫斯", cooldown: 360, isPurple: false }, { name: "卡司特王", cooldown: 450, isPurple: false }
         ];
         var bossState = [];
-        // 核心同步守護鎖：只要雲端沒有成功下載完畢，就不允許時鐘渲染覆蓋畫面
         var isCloudLoaded = false; 
 
         function initSystem() {
@@ -128,7 +127,8 @@
             var savedID = localStorage.getItem('hms_user_id');
             if(savedID) { document.getElementById('user-id-input').value = savedID; }
             
-            // 初始化時不呼叫 renderTable()，全力等待雲端下載
+            // 鐵血修正：初始化時，先准許拿本地生成的乾淨結構畫出列表，絕對防止空白死機！
+            renderTable();
             pullFromCloud();
             setInterval(pullFromCloud, 3000);
             setInterval(updateClock, 1000);
@@ -152,23 +152,30 @@
             var clockEl = document.getElementById('standard-clock');
             if(clockEl) { clockEl.innerText = "🇹🇼 中原標準時間 ➔ " + timeStr; }
             
-            // 守護鎖啟動：只有雲端成功抓到資料才允許每秒刷新畫面，防止刷新將時間洗成空白
-            if (isCloudLoaded) { renderTable(); }
+            // 只要系統開啟，就維持每秒刷新時間與自動輪空演算
+            renderTable();
         }
 
         function pullFromCloud() {
             var xhr = new XMLHttpRequest();
             xhr.open("GET", syncUrl, true);
             xhr.onreadystatechange = function() {
-                if (xhr.readyState === 4 && xhr.status === 200 && xhr.responseText.trim() !== "") {
-                    try {
-                        var res = JSON.parse(xhr.responseText);
-                        if (res && Array.isArray(res) && res.length === bossConfig.length) { 
-                            bossState = res;
-                            isCloudLoaded = true; // 雲端成功載入，解除畫面鎖定
-                            renderTable(); 
-                        }
-                    } catch(e) {}
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    var text = xhr.responseText.trim();
+                    if (text !== "") {
+                        try {
+                            var res = JSON.parse(text);
+                            // 只有雲端資料結構完整、且與最新名單長度一致時，才進行覆蓋更新
+                            if (res && Array.isArray(res) && res.length === bossConfig.length) { 
+                                bossState = res;
+                                isCloudLoaded = true;
+                                renderTable(); 
+                            }
+                        } catch(e) {}
+                    } else {
+                        // 核心死結破解點：如果雲端回傳完全空白（如首次連線），就視為初次啟用，不鎖死
+                        isCloudLoaded = true;
+                    }
                 }
             };
             xhr.send();
@@ -177,8 +184,6 @@
             var xhr = new XMLHttpRequest();
             xhr.open("POST", syncUrl, true);
             xhr.setRequestHeader("Content-Type", "application/json");
-            // 操作時立刻解鎖並渲染畫面，提升操作流暢度
-            isCloudLoaded = true; 
             xhr.send(JSON.stringify(bossState));
             renderTable(); 
         }
@@ -255,7 +260,7 @@
                 var b = bossState[i]; var row = document.createElement('div'); row.className = 'boss-row'; 
                 var timeDisplay = '--:--:--'; var isFlashing = false; var autoSkipCount = 0;
                 
-                // 鋼鐵安全鎖：強制比對主設定檔，徹底消滅伊弗利特變紫色的任何可能性
+                // 強制讀取本地主設定配置為唯一分類標準，徹底阻斷伊弗利特任何變紫色的路徑
                 var realIsPurple = b.isPurple;
                 for (var j = 0; j < bossConfig.length; j++) {
                     if (bossConfig[j].name === b.name) { realIsPurple = bossConfig[j].isPurple; break; }
@@ -271,7 +276,7 @@
                     var diff = curTotalMinutes - spawnTotalMinutes;
                     if (diff < -720) { diff += 1440; } else if (diff > 720) { diff -= 1440; }
                     
-                    // 10分鐘超時自動輪空推進算法
+                    // 10分鐘超時自動輪空推算核心
                     if (diff >= 0) {
                         if (diff <= 10) {
                             isFlashing = true; 
