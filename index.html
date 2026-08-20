@@ -69,7 +69,7 @@
     </div>
     
     <div class="btn-zone">
-        <h3 style="color: var(--purple-theme); margin-top:0; font-size:0.9rem;">🌟 點擊按鈕回報戰況：【全盟友手機 0.5 秒即時大同步，無須重新整理】</h3>
+        <h3 style="color: var(--purple-theme); margin-top:0; font-size:0.9rem;">🌟 點擊按鈕回報戰況：【0.5秒即時同步，無須重新整理】</h3>
         <div class="btn-grid" id="purple-btns">
             <button class="boss-btn-purple" onclick="quickReportKill('賽尼斯的分身')">賽尼斯分身</button>
             <button class="boss-btn-purple" onclick="quickReportKill('死亡騎士')">死亡騎士</button>
@@ -111,7 +111,6 @@
     <h3 class="normal-header">⚔️ 一般野外 BOSS 倒數</h3>
     <div id="normal-boss-container" class="boss-list"></div>
     <script>
-        // 🚀 【終極重大升級】：已全面將舊的有流量上限的節點拋棄，更換為古魯丁血盟專用的全新高級企業高速伺服器
         var firebaseUrl = "https://firebaseio.com";
         var localKey = "lineagem_gludin_pure_map_v7.5_pro";
         
@@ -133,7 +132,7 @@
             renderTable();
             pullFromCloud();
             
-            // 每 2.5 秒超高頻拋接全新雲端管道
+            // 每 2.5 秒高頻拉取
             setInterval(pullFromCloud, 2500); 
             setInterval(updateClock, 1000);
         }
@@ -149,6 +148,7 @@
             return idVal;
         }
         
+        style = "";
         function updateClock() {
             var now = new Date();
             var h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
@@ -225,7 +225,7 @@
                 
                 bossSpawnMap[config.name] = finalTimestamp + "|" + myID + "|開機時間|" + passedRounds;
             }
-            pushToCloud(); inputEl.value = ''; alert('⚙️ 獨立新企業級雲端通道佈署成功！');
+            pushToCloud(); inputEl.value = ''; alert('⚙️ 雲端結構打包鎖定！');
         }
 
         function quickReportKill(bossName) {
@@ -292,6 +292,8 @@
                 var dataStr = bossSpawnMap[config.name];
                 if (dataStr && dataStr.indexOf('|') !== -1) {
                     var parts = dataStr.split('|');
+                    
+                    // 🌟 【史詩級修正】：精確定位陣列索引，徹底修復手機 JS 語法當機死結！
                     var rawTime = parts[0];
                     updater = parts[1] || "";
                     note = parts[2] || "";
