@@ -1023,7 +1023,7 @@
             if (voiceAlertsEnabled) {
                 btn.textContent = 'ON';
                 btn.className = 'voice-toggle on';
-                status.textContent = '已開啟';
+                status.textContent = '已開啟（若無聲音請再按一次）';
             } else {
                 btn.textContent = 'OFF';
                 btn.className = 'voice-toggle off';
@@ -1032,32 +1032,47 @@
         }
 
         function toggleVoiceAlerts() {
-            voiceAlertsEnabled = !voiceAlertsEnabled;
+            if (voiceAlertsEnabled) {
+                // 關閉語音
+                voiceAlertsEnabled = false;
+
+                localStorage.setItem(
+                    'lineageVoiceAlerts',
+                    '0'
+                );
+
+                if (window.speechSynthesis) {
+                    window.speechSynthesis.cancel();
+                }
+
+                updateVoiceToggleUI();
+                return;
+            }
+
+            // 開啟語音：
+            // 一定要透過使用者點擊來重新啟動，避免 Chrome 在重新整理
+            // 或重新開啟頁面後，因自動播放限制而不出聲。
+            if (!window.speechSynthesis) {
+                alert('此瀏覽器不支援語音提醒。');
+                return;
+            }
+
+            voiceAlertsEnabled = true;
 
             localStorage.setItem(
                 'lineageVoiceAlerts',
-                voiceAlertsEnabled ? '1' : '0'
+                '1'
             );
 
-            if (voiceAlertsEnabled) {
-                // Chrome 需要使用者互動來解除語音播放限制。
-                if (window.speechSynthesis) {
-                    window.speechSynthesis.cancel();
+            var testUtterance =
+                new SpeechSynthesisUtterance('語音提醒已開啟');
 
-                    var testUtterance =
-                        new SpeechSynthesisUtterance('語音提醒已開啟');
+            testUtterance.lang = 'zh-TW';
+            testUtterance.rate = 1.05;
+            testUtterance.pitch = 1;
 
-                    testUtterance.lang = 'zh-TW';
-                    testUtterance.rate = 1.05;
-                    testUtterance.pitch = 1;
-
-                    window.speechSynthesis.speak(testUtterance);
-                }
-            } else {
-                if (window.speechSynthesis) {
-                    window.speechSynthesis.cancel();
-                }
-            }
+            window.speechSynthesis.cancel();
+            window.speechSynthesis.speak(testUtterance);
 
             updateVoiceToggleUI();
         }
@@ -1073,8 +1088,6 @@
                     ? '注意，' + bossName + ' 一分鐘後出王！'
                     : '注意，' + bossName + ' 出王了！';
 
-            window.speechSynthesis.cancel();
-
             var utterance =
                 new SpeechSynthesisUtterance(message);
 
@@ -1082,6 +1095,8 @@
             utterance.rate = 1.05;
             utterance.pitch = 1;
 
+            // 不在這裡 cancel，避免同一秒有兩隻王時，
+            // 後一個提醒把前一個提醒取消。
             window.speechSynthesis.speak(utterance);
         }
 
@@ -1217,8 +1232,18 @@
                             0
                         );
 
-                        // 如果今天已經過了，就用明天
-                        if (target.getTime() < nowMs) {
+                        var todayTargetMs =
+                            target.getTime();
+
+                        // ★ 修正固定王「時間到沒語音」的問題
+                        // 不可以單純用 target < now 就直接跳到明天，
+                        // 因為時間到後的幾十秒內，正是「出王時間到」提醒的有效區間。
+                        //
+                        // 只有今天的時間已經超過 1 分鐘，
+                        // 才代表這一輪真的錯過，改抓明天。
+                        if (
+                            todayTargetMs < nowMs - 60000
+                        ) {
                             target.setDate(
                                 target.getDate() + 1
                             );
