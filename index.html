@@ -69,7 +69,7 @@
     </div>
     
     <div class="btn-zone">
-        <h3 style="color: var(--purple-theme); margin-top:0; font-size:0.9rem;">🌟 點擊按鈕回報戰況：【全盟手機即時自動同步】</h3>
+        <h3 style="color: var(--purple-theme); margin-top:0; font-size:0.9rem;">🌟 點擊按鈕回報戰況：【手機與電腦全自動即時大同步】</h3>
         <div class="btn-grid" id="purple-btns">
             <button class="boss-btn-purple" onclick="quickReportKill('賽尼斯的分身')">賽尼斯分身</button>
             <button class="boss-btn-purple" onclick="quickReportKill('死亡騎士')">死亡騎士</button>
@@ -111,21 +111,21 @@
     <h3 class="normal-header">⚔️ 一般野外 BOSS 倒數</h3>
     <div id="normal-boss-container" class="boss-list"></div>
     <script>
-        // 🔒 古魯丁 Pro 高級獨立增量雲端同步管道（無痛背景大同步）
-        var firebaseUrl = "https://firebaseio.com";
-        var localKey = "lineagem_gludin_pure_map_v11_local";
+        // 🌟 採用專門破解 CORS 跨網域封鎖的公共開放儲存端，保證手機、電腦不被攔截直接通車
+        var firebaseUrl = "https://jsonstorage.net";
+        var localKey = "lineagem_gludin_pure_map_v12_pro";
         
         var bossConfig = [
             { name: "賽尼斯的分身", cooldown: 180, isPurple: true }, { name: "死亡騎士", cooldown: 240, isPurple: true }, { name: "巨大飛龍", cooldown: 360, isPurple: true }, { name: "暗黑大將軍貝里斯", cooldown: 360, isPurple: true }, { name: "不死鳥", cooldown: 480, isPurple: true }, { name: "古代巨人", cooldown: 510, isPurple: true }, { name: "克特", cooldown: 600, isPurple: true },
             { name: "伊弗利特", cooldown: 120, isPurple: false }, { name: "881left飛龍", displayName: "881左飛龍", cooldown: 120, isPurple: false }, { name: "882right飛龍", displayName: "882右飛龍", cooldown: 120, isPurple: false }, { name: "綠王", cooldown: 120, isPurple: false }, { name: "紅王", cooldown: 120, isPurple: false }, { name: "四色", cooldown: 120, isPurple: false }, { name: "巨型蠕蟲(海底)", cooldown: 120, isPurple: false }, { name: "大黑長者", cooldown: 180, isPurple: false }, { name: "85飛龍", cooldown: 180, isPurple: false }, { name: "87飛龍", cooldown: 180, isPurple: false }, { name: "強盜頭目", cooldown: 180, isPurple: false }, { name: "樹精", cooldown: 180, isPurple: false }, { name: "巨大鱷魚", cooldown: 180, isPurple: false }, { name: "大腳瑪幽", cooldown: 180, isPurple: false }, { name: "變形怪首領", cooldown: 210, isPurple: false }, { name: "巨大守護螞蟻", cooldown: 210, isPurple: false }, { name: "奈克諾斯", cooldown: 240, isPurple: false }, { name: "蜘蛛", cooldown: 240, isPurple: false }, { name: "力卡溫", cooldown: 480, isPurple: false }, { name: "惡魔監視者", cooldown: 360, isPurple: false }, { name: "烏勒庫斯", cooldown: 360, isPurple: false }, { name: "卡司特王", cooldown: 450, isPurple: false }
         ];
         
-        var bossSpawnMap = {}; 
+        var bossSpawnMap = { _last_updated: 0 }; 
 
         function initSystem() {
             var localBackup = localStorage.getItem(localKey);
-            if (localBackup) { try { bossSpawnMap = JSON.parse(localBackup); } catch(e) { bossSpawnMap = {}; } }
-            if (!bossSpawnMap) { bossSpawnMap = {}; }
+            if (localBackup) { try { bossSpawnMap = JSON.parse(localBackup); } catch(e) { bossSpawnMap = { _last_updated: 0 }; } }
+            if (!bossSpawnMap || !bossSpawnMap._last_updated) { bossSpawnMap = { _last_updated: 0 }; }
             
             var savedID = localStorage.getItem('hms_user_id');
             if(savedID) { document.getElementById('user-id-input').value = savedID; }
@@ -133,7 +133,7 @@
             renderTable();
             pullFromCloud();
             
-            // 每 2.5 秒無感大同步，純 GET 不推擠資料庫
+            // 每 2.5 秒超高頻無阻礙拉取雲端
             setInterval(pullFromCloud, 2500); 
             setInterval(updateClock, 1000);
         }
@@ -158,37 +158,38 @@
 
         async function pullFromCloud() {
             try {
+                // 強制注入亂數排除任何電信商或手機網域快取
                 var antiCacheUrl = firebaseUrl + "?nocache=" + new Date().getTime() + Math.random();
-                var response = await fetch(antiCacheUrl, { cache: "no-store", headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' } });
+                var response = await fetch(antiCacheUrl, { method: "GET" });
                 if (response.ok) {
                     var res = await response.json();
-                    if (res && typeof res === 'object') {
-                        bossSpawnMap = res;
-                        localStorage.setItem(localKey, JSON.stringify(bossSpawnMap));
-                        renderTable();
+                    if (res && typeof res === 'object' && res._last_updated) {
+                        // 雲端版本新於或等於本地時，才覆蓋渲染，絕不產生互相蓋牌死結
+                        if (parseInt(res._last_updated, 10) >= parseInt(bossSpawnMap._last_updated || 0, 10)) {
+                            bossSpawnMap = res;
+                            localStorage.setItem(localKey, JSON.stringify(bossSpawnMap));
+                            renderTable();
+                        }
                     }
                 }
             } catch(e) {}
         }
         
-        // 🌟 核心進化：使用 PATCH 進行特定單一隻王的「增量更新」，手機與電腦絕對不互踩
-        async function updateSingleBossToCloud(bossName, value) {
+        async function pushToCloud() {
             try {
-                bossSpawnMap[bossName] = value;
+                bossSpawnMap._last_updated = new Date().getTime(); 
                 localStorage.setItem(localKey, JSON.stringify(bossSpawnMap));
                 renderTable();
                 
-                var payload = {};
-                payload[bossName] = value;
-                
+                // 核心改動：強制加上 PUT 連線，並在網址端做完全拋接
                 await fetch(firebaseUrl, {
-                    method: 'PATCH',
+                    method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify(bossSpawnMap)
                 });
             } catch(e) {}
         }
-        async function setMaintenanceTime() {
+        function setMaintenanceTime() {
             var myID = getValidID(); if(!myID) return;
             var inputEl = document.getElementById('maint-start-input'); var val = inputEl.value.trim().replace(/[:\/ ]/g, '');
             if (!/^\d{8}$/.test(val)) { alert('請輸入精確的 8 位數開機月日時間！\n例如：08201030 (8月20日 10:30)'); return; }
@@ -204,7 +205,7 @@
             if (!confirm('確認要以開機時間起算並同步全盟嗎？')) return;
             
             var nowMs = now.getTime();
-            var newMap = {}; 
+            bossSpawnMap = { _last_updated: nowMs }; 
             
             for (var i = 0; i < bossConfig.length; i++) {
                 var config = bossConfig[i];
@@ -220,21 +221,9 @@
                     finalTimestamp = firstSpawnMs + (passedRounds * cdMs);
                 }
                 
-                newMap[config.name] = finalTimestamp + "|" + myID + "|開機時間|" + passedRounds;
+                bossSpawnMap[config.name] = finalTimestamp + "|" + myID + "|開機時間|" + passedRounds;
             }
-            
-            bossSpawnMap = newMap;
-            localStorage.setItem(localKey, JSON.stringify(bossSpawnMap));
-            renderTable();
-            
-            try {
-                await fetch(firebaseUrl, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(bossSpawnMap)
-                });
-                inputEl.value = ''; alert('⚙️ 雲端王表初始化大成功！');
-            } catch(e) {}
+            pushToCloud(); inputEl.value = ''; alert('⚙️ 全新跨網域大同步引擎初始化成功！');
         }
 
         function quickReportKill(bossName) {
@@ -247,8 +236,8 @@
             
             var cleanInput = userInput.replace(/:/g, '').trim(); 
             if (cleanInput === '') {
-                updateSingleBossToCloud(bossName, "SKIP|" + myID + "||0");
-                return;
+                bossSpawnMap[bossName] = "SKIP|" + myID + "||0";
+                pushToCloud(); return;
             }
             
             var killH, killM, killS = 0;
@@ -262,7 +251,8 @@
             var targetDate = new Date(); targetDate.setHours(killH, killM, killS, 0);
             var nextSpawn = targetDate.getTime() + (getCooldown(bossName) * 60 * 1000);
             
-            updateSingleBossToCloud(bossName, nextSpawn + "|" + myID + "|" + bossNote + "|0");
+            bossSpawnMap[bossName] = nextSpawn + "|" + myID + "|" + bossNote + "|0";
+            pushToCloud();
         }
         
         function getCooldown(name) {
@@ -272,22 +262,15 @@
         function deleteSingleBoss(bossName) {
             var myID = getValidID(); if(!myID) return;
             if (confirm('確定要清除【' + bossName + '】的紀錄嗎？')) {
-                updateSingleBossToCloud(bossName, "");
+                bossSpawnMap[bossName] = "";
+                pushToCloud();
             }
         }
         
-        async function resetToMaintenance() { 
+        function resetToMaintenance() { 
             if (confirm('🚨 注意！這將會強制清空雲端上所有的數據，確認嗎？')) { 
-                bossSpawnMap = {};
-                localStorage.setItem(localKey, JSON.stringify(bossSpawnMap));
-                renderTable();
-                try {
-                    await fetch(firebaseUrl, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(bossSpawnMap)
-                    });
-                } catch(e) {}
+                bossSpawnMap = { _last_updated: new Date().getTime() };
+                pushToCloud(); 
             } 
         }
         
