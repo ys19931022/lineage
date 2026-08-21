@@ -1961,6 +1961,70 @@
         }
 
         window.onload = startAllianceGate;
-    </script>
+    
+        // ============================================================
+        // 🔐 血盟專屬驗證碼
+        // 只控制本機進入王表，不影響雲端同步。
+        // ============================================================
+        var ALLIANCE_PASSWORD = '666666';
+
+        function unlockAlliance() {
+            var input = document.getElementById('alliance-code');
+            var lock = document.getElementById('alliance-lock');
+            var error = document.getElementById('alliance-error');
+
+            if (!input || !lock || !error) return;
+
+            var code = input.value.trim();
+
+            if (code === ALLIANCE_PASSWORD) {
+                lock.style.display = 'none';
+                error.textContent = '';
+
+                // 記住本機已驗證，重新整理不用一直輸入。
+                localStorage.setItem(
+                    'lineageAllianceUnlocked',
+                    '1'
+                );
+            } else {
+                error.textContent = '❌ 驗證碼錯誤，請重新輸入';
+                input.value = '';
+                input.focus();
+            }
+        }
+
+        // 重新整理後保留本機登入狀態。
+        function checkAllianceUnlock() {
+            var lock = document.getElementById('alliance-lock');
+
+            if (!lock) return;
+
+            if (
+                localStorage.getItem(
+                    'lineageAllianceUnlocked'
+                ) === '1'
+            ) {
+                lock.style.display = 'none';
+            }
+        }
+
+        // 手機／電腦按 Enter 也可以直接驗證。
+        document.addEventListener('DOMContentLoaded', function() {
+            checkAllianceUnlock();
+
+            var input =
+                document.getElementById('alliance-code');
+
+            if (input) {
+                input.addEventListener('keydown', function(event) {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        unlockAlliance();
+                    }
+                });
+            }
+        });
+
+</script>
 </body>
 </html>
