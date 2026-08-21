@@ -77,6 +77,21 @@
             padding-bottom: 5px;
         }
 
+        .cross-server-group {
+            margin-top: 10px;
+            background: transparent;
+        }
+
+        .cross-server-group-title {
+            background: #242424;
+            color: #ffcc80;
+            border: 1px solid #555;
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+
         .cross-server-period {
             background: #2a241b;
             color: #ffcc80;
@@ -401,6 +416,15 @@
                 padding-bottom: 4px;
             }
 
+            .cross-server-group {
+                margin-top: 9px;
+            }
+
+            .cross-server-group-title {
+                padding: 7px 8px;
+                font-size: 0.78rem;
+            }
+
             .cross-row {
                 grid-template-columns: 62px minmax(0, 1fr);
                 gap: 5px;
@@ -669,6 +693,8 @@
             var container = document.getElementById('cross-server-container');
             if (!container) return;
 
+            container.innerHTML = '';
+
             var now = new Date();
             var nowMs = now.getTime();
             var day = now.getDay();
@@ -691,7 +717,6 @@
                 if (candidate.getTime() <= nowMs) {
                     candidate.setDate(candidate.getDate() + 1);
 
-                    // 如果跨到平日／假日，繼續找下一個符合該類型的日期。
                     var targetWeekend = isWeekend;
 
                     while (
@@ -704,30 +729,6 @@
 
                 return candidate;
             }
-
-            var rows = [];
-
-            source.forEach(function(item) {
-                var times = item.time.split('、');
-
-                times.forEach(function(t) {
-                    var date = nextOccurrence(t);
-
-                    rows.push({
-                        area: item.area,
-                        boss: item.boss,
-                        time: t,
-                        type: item.type,
-                        note: item.note,
-                        date: date,
-                        countdown: date.getTime() - nowMs
-                    });
-                });
-            });
-
-            rows.sort(function(a, b) {
-                return a.date.getTime() - b.date.getTime();
-            });
 
             function countdownText(ms) {
                 if (ms <= 0) return '即將開始';
@@ -743,128 +744,100 @@
                     (s < 10 ? '0' : '') + s;
             }
 
-            var titleText = isWeekend ? '假日跨服時間' : '平日跨服時間';
+            function renderGroup(title, items) {
+                if (!items.length) return '';
+
+                var rows = [];
+
+                items.forEach(function(item) {
+                    var times = item.time.split('、');
+
+                    times.forEach(function(t) {
+                        var date = nextOccurrence(t);
+
+                        rows.push({
+                            area: item.area,
+                            boss: item.boss,
+                            time: t,
+                            type: item.type,
+                            note: item.note,
+                            date: date,
+                            countdown: date.getTime() - nowMs
+                        });
+                    });
+                });
+
+                rows.sort(function(a, b) {
+                    return a.date.getTime() - b.date.getTime();
+                });
+
+                var html =
+                    '<div class="cross-server-group">' +
+                        '<div class="cross-server-group-title">' +
+                            title +
+                        '</div>';
+
+                rows.forEach(function(item) {
+                    var soon = item.countdown <= 30 * 60 * 1000;
+                    var cls = soon ? ' cross-soon' : '';
+
+                    var action =
+                        item.type === '通知'
+                            ? '🔔 通知'
+                            : '👑 出王';
+
+                    if (item.note) {
+                        action += ' [' + item.note + ']';
+                    }
+
+                    html +=
+                        '<div class="cross-row' + cls + '">' +
+                            '<div class="cross-time">' +
+                                item.time +
+                            '</div>' +
+                            '<div class="cross-info">' +
+                                (item.boss
+                                    ? '<strong>' + item.boss + '</strong>'
+                                    : '<strong>' + item.area + '</strong>') +
+                                '<small>' + action + '</small>' +
+                            '</div>' +
+                            '<div class="cross-countdown' + cls + '">' +
+                                countdownText(item.countdown) +
+                            '</div>' +
+                        '</div>';
+                });
+
+                html += '</div>';
+
+                return html;
+            }
+
+            var titleText = isWeekend
+                ? '假日跨服時間'
+                : '平日跨服時間';
 
             var html =
                 '<div class="cross-server-period">' +
                     '📅 ' + titleText +
                 '</div>';
 
-            rows.forEach(function(item) {
-                var soon = item.countdown <= 30 * 60 * 1000;
-                var cls = soon ? ' cross-soon' : '';
+            if (isWeekend) {
+                var forgotten = source.filter(function(item) {
+                    return item.area === '遺忘之島';
+                });
 
-                var label = item.boss
-                    ? item.boss
-                    : item.area;
+                var lastabad = source.filter(function(item) {
+                    return item.area === '拉斯塔巴德';
+                });
 
-                var action =
-                    item.type === '通知'
-                        ? '🔔 通知'
-                        : '👑 出王';
+                html += renderGroup('🏝️ 遺忘之島', forgotten);
+                html += renderGroup('🏰 拉斯塔巴德', lastabad);
 
-                if (item.note) {
-                    action += ' [' + item.note + ']';
-                }
-
-                html +=
-                    '<div class="cross-row' + cls + '">' +
-                        '<div class="cross-time">' +
-                            item.time +
-                        '</div>' +
-                        '<div class="cross-info">' +
-                            '<strong>' + item.area + '</strong>' +
-                            (item.boss
-                                ? '<span>' + item.boss + '</span>'
-                                : '') +
-                            '<small>' + action + '</small>' +
-                        '</div>' +
-                        '<div class="cross-countdown' + cls + '">' +
-                            countdownText(item.countdown) +
-                        '</div>' +
-                    '</div>';
-            });
+            } else {
+                html += renderGroup('🏰 傲慢之塔', source);
+            }
 
             container.innerHTML = html;
-        }
-
-        var bossSpawnMap = {};
-
-        // 🔐 血盟專屬驗證碼
-        // 注意：這是「網站入口驗證」，不是 Firebase 的真正安全規則。
-        // 真正要阻止他人直接呼叫 Firebase API，仍需搭配 Firebase Authentication / Rules。
-        var ALLIANCE_CODE = "666666";
-        var ALLIANCE_AUTH_KEY = "gludin_alliance_verified_v1";
-
-        function unlockAlliance() {
-            var input = document.getElementById('alliance-code');
-            var error = document.getElementById('alliance-error');
-            var code = (input.value || '').trim();
-
-            if (code === ALLIANCE_CODE) {
-                localStorage.setItem(ALLIANCE_AUTH_KEY, '1');
-                document.getElementById('alliance-lock').style.display = 'none';
-                error.textContent = '';
-                initSystem();
-            } else {
-                error.textContent = '❌ 驗證碼錯誤，請重新輸入。';
-                input.value = '';
-                input.focus();
-            }
-        }
-
-        function startAllianceGate() {
-            var lock = document.getElementById('alliance-lock');
-            var input = document.getElementById('alliance-code');
-            if (localStorage.getItem(ALLIANCE_AUTH_KEY) === '1') {
-                lock.style.display = 'none';
-                initSystem();
-                return;
-            }
-            lock.style.display = 'flex';
-            input.focus();
-            input.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter') unlockAlliance();
-            });
-        }
-
-        function initSystem() {
-            var localBackup = localStorage.getItem(localKey);
-            if (localBackup) { try { bossSpawnMap = JSON.parse(localBackup); } catch(e) { bossSpawnMap = {}; } }
-            if (!bossSpawnMap) { bossSpawnMap = {}; }
-            
-            var savedID = localStorage.getItem('hms_user_id');
-            if(savedID) { document.getElementById('user-id-input').value = savedID; }
-            
-            renderTable();
-            renderFixedBosses();
-            renderCrossServerBosses();
-            pullFromCloud();
-            startRealtimeSync();
-            
-            // 每 30 秒補抓一次完整資料，作為即時同步的斷線保險
-            setInterval(pullFromCloud, 30000); 
-            setInterval(updateClock, 1000);
-        }
-        
-        function saveLocalID() {
-            var idVal = document.getElementById('user-id-input').value.trim();
-            localStorage.setItem('hms_user_id', idVal);
-        }
-        
-        function getValidID() {
-            var idVal = document.getElementById('user-id-input').value.trim();
-            if(!idVal) { alert('❌ 操作失敗！請先在網頁頂端輸入您的【填單人員 ID】！'); return null; }
-            return idVal;
-        }
-        
-        function updateClock() {
-            var now = new Date();
-            var h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
-            document.getElementById('standard-clock').innerText = "🇹🇼 中原標準時間 ➔ " + (h<10?'0':'')+h + ':' + (m<10?'0':'')+m + ':' + (s<10?'0':'')+s;
-            renderTable();
-            renderFixedBosses();
-            renderCrossServerBosses();
         }
 
         // ============================================================
