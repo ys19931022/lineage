@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex, nofollow, noarchive">
-    <title>天堂M 新篇章2.0 磐門血盟專屬王表</title>
+    <title>天堂M 新篇章1.0 詐騙集團專屬王表</title>
     <style>
         :root { --bg-color: #121212; --card-bg: #1e1e1e; --gold-theme: #ffd700; --purple-theme: #b388ff; --text-color: #e0e0e0; --border-color: #333; }
         body { font-family: -apple-system, sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 15px; }
@@ -71,6 +71,74 @@
             font-size: 0.75rem;
             color: #aaa;
         }
+        .cross-server-header {
+            color: #ffb74d;
+            border-bottom: 2px solid #ffb74d;
+            padding-bottom: 5px;
+        }
+
+        .cross-server-period {
+            background: #2a241b;
+            color: #ffcc80;
+            border: 1px solid #6d5430;
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-weight: bold;
+        }
+
+        .cross-row {
+            display: grid;
+            grid-template-columns: 75px minmax(0, 1fr) 150px;
+            align-items: center;
+            gap: 10px;
+            background: var(--card-bg);
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            transition: background-color 0.15s ease, border-color 0.15s ease;
+        }
+
+        .cross-row:hover {
+            background: #292929;
+            border-color: #777;
+        }
+
+        .cross-time {
+            font-family: monospace;
+            font-size: 1.05rem;
+            font-weight: bold;
+        }
+
+        .cross-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+        }
+
+        .cross-info span {
+            font-size: 0.82rem;
+            color: #ddd;
+        }
+
+        .cross-info small {
+            color: #ffcc80;
+            font-size: 0.72rem;
+        }
+
+        .cross-countdown {
+            text-align: right;
+            font-family: monospace;
+            font-size: 0.82rem;
+            color: #aaa;
+        }
+
+        .cross-soon .cross-time,
+        .cross-soon .cross-countdown {
+            color: #ffb74d;
+            font-weight: bold;
+        }
+
         .boss-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
         .boss-row { display: flex; align-items: center; justify-content: space-between; background: var(--card-bg); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); }
         /* 滑鼠移入整列高亮，方便辨認這一列對應的清空按鈕 */
@@ -329,6 +397,34 @@
             }
             #voice-status { font-size: 0.68rem; }
 
+            .cross-server-header {
+                padding-bottom: 4px;
+            }
+
+            .cross-row {
+                grid-template-columns: 62px minmax(0, 1fr);
+                gap: 5px;
+                padding: 8px 9px;
+            }
+
+            .cross-time {
+                font-size: 0.92rem;
+            }
+
+            .cross-info span {
+                font-size: 0.76rem;
+            }
+
+            .cross-info small {
+                font-size: 0.66rem;
+            }
+
+            .cross-countdown {
+                grid-column: 2;
+                text-align: right;
+                font-size: 0.7rem;
+            }
+
             .fixed-header,
             .purple-header,
             .normal-header {
@@ -437,7 +533,7 @@
         </div>
     </div>
 
-    <h2>🕒 天堂M 新篇章2.0 磐門血盟專屬王表</h2>
+    <h2>🕒 天堂M 新篇章1.0 詐騙集團專屬王表</h2>
     <div class="voice-panel">
         <span class="voice-label">🔊 語音提醒</span>
         <button id="voice-toggle-btn" class="voice-toggle off" onclick="toggleVoiceAlerts()">OFF</button>
@@ -504,6 +600,9 @@
 
     <h3 class="fixed-header">⏰ 固定王時間表</h3>
     <div id="fixed-boss-container" class="boss-list"></div>
+
+    <h3 class="cross-server-header">🌐 跨服BOSS時間</h3>
+    <div id="cross-server-container" class="boss-list"></div>
     <script>
         // 🚀 【終極重大升級】：已全面將舊的有流量上限的節點拋棄，更換為古魯丁血盟專用的全新高級企業高速伺服器
         // ☁️【全盟同步設定】
@@ -521,12 +620,12 @@
         // ⏰ 固定王：依你提供的固定時間表。
         var fixedBossConfig = [
             { name: "巴風特", times: ["14:00-14:30", "20:00-20:30"] },
-            { name: "奇岩地監1F", times: ["00:00", "06:00", "12:00", "18:00"] },
-            { name: "奇岩地監2F", times: ["07:00", "14:00", "21:00"] },
+            { name: "奇岩地監1F", times: ["00:00", "06:00", "12:00", "18:00"], noSpawnDays: [0, 6] },
+            { name: "奇岩地監2F", times: ["07:00", "14:00", "21:00"], noSpawnDays: [0, 6] },
             { name: "暗黑地監4F", times: ["18:00"] },
             { name: "雪碧三王", times: ["19:15"] },
-            { name: "奇岩地監3F", times: ["20:15"] },
-            { name: "奇岩地監4F", times: ["21:15"] },
+            { name: "奇岩地監3F", times: ["20:15"], noSpawnDays: [0, 6] },
+            { name: "奇岩地監4F", times: ["21:15"], noSpawnDays: [0, 6] },
             { name: "惡魔", times: ["22:00"] },
             { name: "杜佩爾奈諾", times: ["22:30"] },
             { name: "異界的惡魔", times: ["23:00"] },
@@ -535,6 +634,160 @@
         ];
 
         
+
+        // ============================================================
+        // 🌐 跨服 BOSS 時間
+        // 平日：星期一～星期五
+        // 假日：星期六、星期日
+        // ============================================================
+        var crossServerBossConfig = {
+            weekday: [
+                { area: "傲慢之塔", boss: "1F、6F", time: "12:18", type: "通知", note: "集合拍照" },
+                { area: "傲慢之塔", boss: "2F、7F", time: "19:18", type: "通知", note: "集合拍照" },
+                { area: "傲慢之塔", boss: "3F、8F", time: "19:58", type: "通知", note: "集合拍照" },
+                { area: "傲慢之塔", boss: "4F、9F", time: "20:18", type: "通知", note: "集合拍照" },
+                { area: "傲慢之塔", boss: "5F、10F", time: "22:18", type: "通知", note: "集合拍照" }
+            ],
+            weekend: [
+                { area: "遺忘之島", boss: "", time: "15:48", type: "通知", note: "集合拍照" },
+                { area: "遺忘之島", boss: "哈維女王", time: "16:00", type: "出王", note: "" },
+                { area: "遺忘之島", boss: "亞力安王", time: "16:15", type: "出王", note: "" },
+                { area: "遺忘之島", boss: "毆吉王", time: "16:30", type: "出王", note: "" },
+                { area: "遺忘之島", boss: "飛龍王", time: "16:45", type: "出王", note: "" },
+                { area: "遺忘之島", boss: "巨大牛人", time: "17:00", type: "出王", note: "" },
+                { area: "遺忘之島", boss: "泰坦高崙", time: "17:15", type: "出王", note: "" },
+
+                { area: "拉斯塔巴德", boss: "", time: "15:48", type: "通知", note: "集合拍照" },
+                { area: "拉斯塔巴德", boss: "暗殺君王", time: "16:00、16:10、16:20", type: "出王", note: "" },
+                { area: "拉斯塔巴德", boss: "法令君王", time: "16:00、16:10、16:20", type: "出王", note: "" },
+                { area: "拉斯塔巴德", boss: "魔獸君王", time: "16:30、16:40、16:50", type: "出王", note: "" },
+                { area: "拉斯塔巴德", boss: "冥法君王", time: "16:30、16:40、16:50", type: "出王", note: "" }
+            ]
+        };
+
+        function renderCrossServerBosses() {
+            var container = document.getElementById('cross-server-container');
+            if (!container) return;
+
+            var now = new Date();
+            var nowMs = now.getTime();
+            var day = now.getDay();
+            var isWeekend = (day === 0 || day === 6);
+            var source = isWeekend
+                ? crossServerBossConfig.weekend
+                : crossServerBossConfig.weekday;
+
+            function nextOccurrence(timeText) {
+                var parts = timeText.split(':');
+                var candidate = new Date(now);
+
+                candidate.setHours(
+                    parseInt(parts[0], 10),
+                    parseInt(parts[1], 10),
+                    0,
+                    0
+                );
+
+                if (candidate.getTime() <= nowMs) {
+                    candidate.setDate(candidate.getDate() + 1);
+
+                    // 如果跨到平日／假日，繼續找下一個符合該類型的日期。
+                    var targetWeekend = isWeekend;
+
+                    while (
+                        ((candidate.getDay() === 0 ||
+                          candidate.getDay() === 6) !== targetWeekend)
+                    ) {
+                        candidate.setDate(candidate.getDate() + 1);
+                    }
+                }
+
+                return candidate;
+            }
+
+            var rows = [];
+
+            source.forEach(function(item) {
+                var times = item.time.split('、');
+
+                times.forEach(function(t) {
+                    var date = nextOccurrence(t);
+
+                    rows.push({
+                        area: item.area,
+                        boss: item.boss,
+                        time: t,
+                        type: item.type,
+                        note: item.note,
+                        date: date,
+                        countdown: date.getTime() - nowMs
+                    });
+                });
+            });
+
+            rows.sort(function(a, b) {
+                return a.date.getTime() - b.date.getTime();
+            });
+
+            function countdownText(ms) {
+                if (ms <= 0) return '即將開始';
+
+                var total = Math.floor(ms / 1000);
+                var h = Math.floor(total / 3600);
+                var m = Math.floor((total % 3600) / 60);
+                var s = total % 60;
+
+                return '還有 ' +
+                    (h < 10 ? '0' : '') + h + ':' +
+                    (m < 10 ? '0' : '') + m + ':' +
+                    (s < 10 ? '0' : '') + s;
+            }
+
+            var titleText = isWeekend ? '假日跨服時間' : '平日跨服時間';
+
+            var html =
+                '<div class="cross-server-period">' +
+                    '📅 ' + titleText +
+                '</div>';
+
+            rows.forEach(function(item) {
+                var soon = item.countdown <= 30 * 60 * 1000;
+                var cls = soon ? ' cross-soon' : '';
+
+                var label = item.boss
+                    ? item.boss
+                    : item.area;
+
+                var action =
+                    item.type === '通知'
+                        ? '🔔 通知'
+                        : '👑 出王';
+
+                if (item.note) {
+                    action += ' [' + item.note + ']';
+                }
+
+                html +=
+                    '<div class="cross-row' + cls + '">' +
+                        '<div class="cross-time">' +
+                            item.time +
+                        '</div>' +
+                        '<div class="cross-info">' +
+                            '<strong>' + item.area + '</strong>' +
+                            (item.boss
+                                ? '<span>' + item.boss + '</span>'
+                                : '') +
+                            '<small>' + action + '</small>' +
+                        '</div>' +
+                        '<div class="cross-countdown' + cls + '">' +
+                            countdownText(item.countdown) +
+                        '</div>' +
+                    '</div>';
+            });
+
+            container.innerHTML = html;
+        }
+
         var bossSpawnMap = {};
 
         // 🔐 血盟專屬驗證碼
@@ -585,6 +838,7 @@
             
             renderTable();
             renderFixedBosses();
+            renderCrossServerBosses();
             pullFromCloud();
             startRealtimeSync();
             
@@ -610,6 +864,7 @@
             document.getElementById('standard-clock').innerText = "🇹🇼 中原標準時間 ➔ " + (h<10?'0':'')+h + ':' + (m<10?'0':'')+m + ':' + (s<10?'0':'')+s;
             renderTable();
             renderFixedBosses();
+            renderCrossServerBosses();
         }
 
         // ============================================================
@@ -935,7 +1190,7 @@
             var nowMs = now.getTime();
             var fixedRows = [];
 
-            function getNextOccurrence(timeText) {
+            function getNextOccurrence(timeText, noSpawnDays) {
                 var startText = timeText.split('-')[0];
                 var parts = startText.split(':');
 
@@ -947,8 +1202,27 @@
                     0
                 );
 
-                if (candidate.getTime() <= nowMs) {
+                // 找到下一個「允許出王」的日期。
+                // noSpawnDays：0=週日、6=週六。
+                for (var i = 0; i < 8; i++) {
+                    var day = candidate.getDay();
+
+                    if (
+                        !noSpawnDays ||
+                        noSpawnDays.indexOf(day) === -1
+                    ) {
+                        if (candidate.getTime() > nowMs) {
+                            return candidate;
+                        }
+                    }
+
                     candidate.setDate(candidate.getDate() + 1);
+                    candidate.setHours(
+                        parseInt(parts[0], 10),
+                        parseInt(parts[1], 10),
+                        0,
+                        0
+                    );
                 }
 
                 return candidate;
@@ -972,7 +1246,10 @@
                 var occurrences = fixed.times.map(function(timeText) {
                     return {
                         text: timeText,
-                        date: getNextOccurrence(timeText)
+                        date: getNextOccurrence(
+                            timeText,
+                            fixed.noSpawnDays || []
+                        )
                     };
                 });
 
@@ -986,6 +1263,7 @@
                 fixedRows.push({
                     name: fixed.name,
                     times: fixed.times,
+                    noSpawnDays: fixed.noSpawnDays || [],
                     next: next,
                     countdown: countdown
                 });
@@ -1002,6 +1280,11 @@
                 var soon = item.countdown <= 30 * 60 * 1000;
                 var cls = soon ? ' fixed-soon' : '';
 
+                var cycleText = item.noSpawnDays.indexOf(0) !== -1 &&
+                                item.noSpawnDays.indexOf(6) !== -1
+                    ? '平日出王｜星期六、星期日不出王'
+                    : '每日';
+
                 row.innerHTML =
                     '<div class="fixed-info">' +
                         '<div class="fixed-next' + cls + '">' +
@@ -1011,7 +1294,8 @@
                             '⏰ ' + item.name +
                         '</div>' +
                         '<div class="fixed-schedule">' +
-                            '每日：' + item.times.join('　') +
+                            cycleText + '：' +
+                            item.times.join('　') +
                         '</div>' +
                     '</div>' +
                     '<div class="fixed-countdown' + cls + '">' +
