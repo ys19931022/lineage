@@ -1960,13 +1960,28 @@
             }
         }
 
-        window.onload = startAllianceGate;
+
     
         // ============================================================
-        // 🔐 血盟專屬驗證碼
-        // 只控制本機進入王表，不影響雲端同步。
+        // 🔐 詐騙集團專屬驗證碼
         // ============================================================
         var ALLIANCE_PASSWORD = '666666';
+
+        function startAllianceGate() {
+            var lock = document.getElementById('alliance-lock');
+            var input = document.getElementById('alliance-code');
+
+            if (!lock) return;
+
+            if (
+                localStorage.getItem('lineageAllianceUnlocked') === '1'
+            ) {
+                lock.style.display = 'none';
+            } else {
+                lock.style.display = 'flex';
+                if (input) input.focus();
+            }
+        }
 
         function unlockAlliance() {
             var input = document.getElementById('alliance-code');
@@ -1975,55 +1990,47 @@
 
             if (!input || !lock || !error) return;
 
-            var code = input.value.trim();
+            var code = String(input.value || '').trim();
 
-            if (code === ALLIANCE_PASSWORD) {
-                lock.style.display = 'none';
-                error.textContent = '';
-
-                // 記住本機已驗證，重新整理不用一直輸入。
+            // 直接比對 666666，避免任何其他設定影響驗證。
+            if (code === '666666') {
                 localStorage.setItem(
                     'lineageAllianceUnlocked',
                     '1'
                 );
+
+                error.textContent = '';
+                lock.style.display = 'none';
+
             } else {
-                error.textContent = '❌ 驗證碼錯誤，請重新輸入';
+                error.textContent =
+                    '❌ 驗證碼錯誤，請輸入 666666';
                 input.value = '';
                 input.focus();
             }
         }
 
-        // 重新整理後保留本機登入狀態。
-        function checkAllianceUnlock() {
-            var lock = document.getElementById('alliance-lock');
+        document.addEventListener(
+            'DOMContentLoaded',
+            function() {
+                startAllianceGate();
 
-            if (!lock) return;
+                var input =
+                    document.getElementById('alliance-code');
 
-            if (
-                localStorage.getItem(
-                    'lineageAllianceUnlocked'
-                ) === '1'
-            ) {
-                lock.style.display = 'none';
+                if (input) {
+                    input.addEventListener(
+                        'keydown',
+                        function(event) {
+                            if (event.key === 'Enter') {
+                                event.preventDefault();
+                                unlockAlliance();
+                            }
+                        }
+                    );
+                }
             }
-        }
-
-        // 手機／電腦按 Enter 也可以直接驗證。
-        document.addEventListener('DOMContentLoaded', function() {
-            checkAllianceUnlock();
-
-            var input =
-                document.getElementById('alliance-code');
-
-            if (input) {
-                input.addEventListener('keydown', function(event) {
-                    if (event.key === 'Enter') {
-                        event.preventDefault();
-                        unlockAlliance();
-                    }
-                });
-            }
-        });
+        );
 
 </script>
 </body>
