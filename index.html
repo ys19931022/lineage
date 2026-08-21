@@ -122,6 +122,20 @@
             font-family: monospace;
             font-size: 1.05rem;
             font-weight: bold;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .cross-time-main {
+            white-space: nowrap;
+        }
+
+        .cross-next-time {
+            font-family: inherit;
+            font-size: 0.65rem;
+            color: #aaa;
+            white-space: nowrap;
         }
 
         .cross-info {
@@ -433,6 +447,15 @@
 
             .cross-time {
                 font-size: 0.92rem;
+            }
+
+            .cross-time-main {
+                white-space: normal;
+                line-height: 1.2;
+            }
+
+            .cross-next-time {
+                font-size: 0.6rem;
             }
 
             .cross-info span {
@@ -747,25 +770,95 @@
             function renderGroup(title, items) {
                 if (!items.length) return '';
 
+                var isLastabard =
+                    title.indexOf('拉斯塔巴德') !== -1;
+
                 var rows = [];
 
-                items.forEach(function(item) {
-                    var times = item.time.split('、');
+                if (isLastabard) {
+                    // 拉斯塔巴德：相同名稱的王合併成同一列，
+                    // 例如：
+                    // 暗殺君王  16:00、16:10、16:20
+                    // 法令君王  16:00、16:10、16:20
+                    var grouped = {};
 
-                    times.forEach(function(t) {
-                        var date = nextOccurrence(t);
+                    items.forEach(function(item) {
+                        var key = item.boss || item.area;
+
+                        if (!grouped[key]) {
+                            grouped[key] = {
+                                area: item.area,
+                                boss: item.boss,
+                                times: [],
+                                type: item.type,
+                                note: item.note
+                            };
+                        }
+
+                        item.time.split('、').forEach(function(t) {
+                            if (
+                                grouped[key].times.indexOf(t) === -1
+                            ) {
+                                grouped[key].times.push(t);
+                            }
+                        });
+                    });
+
+                    Object.keys(grouped).forEach(function(key) {
+                        var item = grouped[key];
+
+                        item.times.sort(function(a, b) {
+                            return a.localeCompare(b);
+                        });
+
+                        var occurrences = item.times.map(function(t) {
+                            return {
+                                time: t,
+                                date: nextOccurrence(t)
+                            };
+                        });
+
+                        occurrences.sort(function(a, b) {
+                            return a.date.getTime() - b.date.getTime();
+                        });
+
+                        var next = occurrences[0];
 
                         rows.push({
                             area: item.area,
                             boss: item.boss,
-                            time: t,
+                            times: item.times,
+                            time: item.times.join('、'),
+                            nextTime: next.time,
                             type: item.type,
                             note: item.note,
-                            date: date,
-                            countdown: date.getTime() - nowMs
+                            date: next.date,
+                            countdown: next.date.getTime() - nowMs
                         });
                     });
-                });
+
+                } else {
+                    // 遺忘之島／其他區域維持原本一個時間一列。
+                    items.forEach(function(item) {
+                        var times = item.time.split('、');
+
+                        times.forEach(function(t) {
+                            var date = nextOccurrence(t);
+
+                            rows.push({
+                                area: item.area,
+                                boss: item.boss,
+                                times: [t],
+                                time: t,
+                                nextTime: t,
+                                type: item.type,
+                                note: item.note,
+                                date: date,
+                                countdown: date.getTime() - nowMs
+                            });
+                        });
+                    });
+                }
 
                 rows.sort(function(a, b) {
                     return a.date.getTime() - b.date.getTime();
@@ -778,8 +871,11 @@
                         '</div>';
 
                 rows.forEach(function(item) {
-                    var soon = item.countdown <= 30 * 60 * 1000;
-                    var cls = soon ? ' cross-soon' : '';
+                    var soon =
+                        item.countdown <= 30 * 60 * 1000;
+
+                    var cls =
+                        soon ? ' cross-soon' : '';
 
                     var action =
                         item.type === '通知'
@@ -787,22 +883,54 @@
                             : '👑 出王';
 
                     if (item.note) {
-                        action += ' [' + item.note + ']';
+                        action +=
+                            ' [' + item.note + ']';
+                    }
+
+                    var bossTitle =
+                        item.boss
+                            ? item.boss
+                            : item.area;
+
+                    var timeHtml;
+
+                    if (isLastabard) {
+                        timeHtml =
+                            '<span class="cross-time-main">' +
+                                item.time +
+                            '</span>' +
+                            '<span class="cross-next-time">' +
+                                '下一次：' +
+                                item.nextTime +
+                            '</span>';
+                    } else {
+                        timeHtml =
+                            '<span class="cross-time-main">' +
+                                item.time +
+                            '</span>';
                     }
 
                     html +=
-                        '<div class="cross-row' + cls + '">' +
+                        '<div class="cross-row' +
+                            cls +
+                        '">' +
                             '<div class="cross-time">' +
-                                item.time +
+                                timeHtml +
                             '</div>' +
                             '<div class="cross-info">' +
-                                (item.boss
-                                    ? '<strong>' + item.boss + '</strong>'
-                                    : '<strong>' + item.area + '</strong>') +
-                                '<small>' + action + '</small>' +
+                                '<strong>' +
+                                    bossTitle +
+                                '</strong>' +
+                                '<small>' +
+                                    action +
+                                '</small>' +
                             '</div>' +
-                            '<div class="cross-countdown' + cls + '">' +
-                                countdownText(item.countdown) +
+                            '<div class="cross-countdown' +
+                                cls +
+                            '">' +
+                                countdownText(
+                                    item.countdown
+                                ) +
                             '</div>' +
                         '</div>';
                 });
