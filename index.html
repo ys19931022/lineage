@@ -1960,6 +1960,112 @@
             }
         }
 
+        // ============================================================
+        // 🚀 系統初始化
+        // ============================================================
+        function initSystem() {
+            var localBackup =
+                localStorage.getItem(localKey);
+
+            if (localBackup) {
+                try {
+                    bossSpawnMap =
+                        JSON.parse(localBackup);
+                } catch (e) {
+                    bossSpawnMap = {};
+                }
+            }
+
+            if (!bossSpawnMap) {
+                bossSpawnMap = {};
+            }
+
+            var savedID =
+                localStorage.getItem('hms_user_id');
+
+            if (savedID) {
+                var idInput =
+                    document.getElementById('user-id-input');
+
+                if (idInput) {
+                    idInput.value = savedID;
+                }
+            }
+
+            renderTable();
+            renderFixedBosses();
+            renderCrossServerBosses();
+            pullFromCloud();
+            startRealtimeSync();
+
+            // 每 30 秒補抓一次完整資料，作為即時同步的斷線保險。
+            setInterval(
+                pullFromCloud,
+                30000
+            );
+
+            // 每秒更新時間、王表倒數與固定王／跨服倒數。
+            setInterval(
+                updateClock,
+                1000
+            );
+        }
+
+        function saveLocalID() {
+            var input =
+                document.getElementById('user-id-input');
+
+            if (!input) return;
+
+            localStorage.setItem(
+                'hms_user_id',
+                input.value.trim()
+            );
+        }
+
+        function getValidID() {
+            var input =
+                document.getElementById('user-id-input');
+
+            if (!input) return null;
+
+            var idVal =
+                input.value.trim();
+
+            if (!idVal) {
+                alert(
+                    '❌ 操作失敗！請先在網頁頂端輸入您的【填單人員 ID】！'
+                );
+                return null;
+            }
+
+            return idVal;
+        }
+
+        function updateClock() {
+            var now = new Date();
+
+            var h = now.getHours();
+            var m = now.getMinutes();
+            var s = now.getSeconds();
+
+            var clock =
+                document.getElementById('standard-clock');
+
+            if (clock) {
+                clock.innerText =
+                    '🇹🇼 中原標準時間 ➔ ' +
+                    (h < 10 ? '0' : '') + h + ':' +
+                    (m < 10 ? '0' : '') + m + ':' +
+                    (s < 10 ? '0' : '') + s;
+            }
+
+            renderTable();
+            renderFixedBosses();
+            renderCrossServerBosses();
+        }
+
+
 
     
         // ============================================================
@@ -1977,6 +2083,7 @@
                 localStorage.getItem('lineageAllianceUnlocked') === '1'
             ) {
                 lock.style.display = 'none';
+                initSystem();
             } else {
                 lock.style.display = 'flex';
                 if (input) input.focus();
@@ -2001,6 +2108,7 @@
 
                 error.textContent = '';
                 lock.style.display = 'none';
+                initSystem();
 
             } else {
                 error.textContent =
@@ -2031,6 +2139,8 @@
                 }
             }
         );
+
+        window.onload = startAllianceGate;
 
 </script>
 </body>
