@@ -2555,6 +2555,31 @@
 
                                     displayRounds +=
                                         dynamicRounds;
+
+                                    // ★ 自動輪空後要重新判斷「新的王時間」是否正在提醒區間。
+                                    // 原本在計算輪空前判斷過一次閃爍，
+                                    // 更新 spawnTimestamp 後沒有重新判斷，
+                                    // 因此新一輪時間到時不會閃爍。
+                                    var newOverMs =
+                                        nowMs -
+                                        spawnTimestamp;
+
+                                    var newBeforeMs =
+                                        spawnTimestamp -
+                                        nowMs;
+
+                                    if (
+                                        (
+                                            newBeforeMs > 0 &&
+                                            newBeforeMs <= 60 * 1000
+                                        ) ||
+                                        (
+                                            newOverMs >= 0 &&
+                                            newOverMs <= 60 * 1000
+                                        )
+                                    ) {
+                                        isFlashing = true;
+                                    }
                                 }
                             }
 
