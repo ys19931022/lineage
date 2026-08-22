@@ -979,7 +979,14 @@
             ];
 
             groups.forEach(function(group) {
-                // 假日王只在實際對應的星期通知。
+                // 🏰 傲慢之塔只在平日通知；星期六、日完全不播。
+                if (group.day === null) {
+                    if (currentDay === 0 || currentDay === 6) {
+                        return;
+                    }
+                }
+
+                // 🏝️ 遺忘之島＝星期六；🏰 拉斯塔巴德＝星期日
                 if (
                     group.day !== null &&
                     currentDay !== group.day
