@@ -1068,8 +1068,23 @@
                     );
                 } else {
                     var lastabad = crossServerBossConfig.weekend.filter(function(item) {
-                        return item.area === '拉斯塔巴德';
+                        return String(item.area || '').trim() === '拉斯塔巴德';
                     });
+
+                    // 若舊資料的區域名稱沒有 area 欄位，
+                    // 仍以 BOSS 名稱判斷，避免拉斯塔巴德整區消失。
+                    if (!lastabad.length) {
+                        lastabad = crossServerBossConfig.weekend.filter(function(item) {
+                            var name = String(item.name || '').trim();
+                            return [
+                                '拉斯塔巴德',
+                                '暗殺君王',
+                                '法令君王',
+                                '魔獸君王',
+                                '冥法君王'
+                            ].indexOf(name) !== -1;
+                        });
+                    }
 
                     html += renderGroup(
                         '🏰 拉斯塔巴德｜星期日跨服時間',
