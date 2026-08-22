@@ -813,7 +813,7 @@
                 !voiceSpeechUnlocked ||
                 !window.speechSynthesis
             ) {
-                return;
+                return false;
             }
 
             var message;
@@ -831,10 +831,16 @@
             }
 
             try {
-                window.speechSynthesis.resume();
+                var synth =
+                    window.speechSynthesis;
+
+                // 若瀏覽器語音引擎卡在 paused，先恢復。
+                synth.resume();
 
                 var utterance =
-                    new SpeechSynthesisUtterance(message);
+                    new SpeechSynthesisUtterance(
+                        message
+                    );
 
                 utterance.lang = 'zh-TW';
                 utterance.rate = 1.05;
@@ -844,8 +850,22 @@
                         ? voiceAlertVolume
                         : 1;
 
-                window.speechSynthesis.speak(utterance);
-            } catch (e) {}
+                utterance.onerror = function(event) {
+                    console.log(
+                        '跨服語音播放失敗：',
+                        event && event.error
+                    );
+                };
+
+                synth.speak(utterance);
+                return true;
+            } catch (e) {
+                console.log(
+                    '跨服語音例外：',
+                    e
+                );
+                return false;
+            }
         }
 
         function checkCrossServerAlerts() {
@@ -997,14 +1017,18 @@
                                 th * 3600 +
                                 tm * 60;
 
-                            // 只在「時間到」的那一秒附近通知。
-                            var diff =
-                                eventSec -
-                                totalSec;
+                            // 「時間到」的同一分鐘內觸發一次。
+                            // 不再要求剛好卡在某一秒，避免瀏覽器
+                            // 背景分頁／省電模式造成通知漏掉。
+                            var currentMinute =
+                                h * 60 + m;
+
+                            var eventMinute =
+                                th * 60 + tm;
 
                             if (
-                                diff < 0 ||
-                                diff > 1
+                                currentMinute !==
+                                eventMinute
                             ) {
                                 return;
                             }
@@ -1015,7 +1039,9 @@
                                 ).trim();
 
                             var isPhoto =
-                                item.type === '通知' ||
+                                String(
+                                    item.type || ''
+                                ).trim() === '通知' ||
                                 (
                                     timeText === '15:48' &&
                                     (
@@ -1864,7 +1890,7 @@
                 var row = document.createElement('div');
                 row.className = 'fixed-row';
 
-                var soon = item.countdown <= 60 * 1000;
+                var soon = item.countdown <= 30 * 60 * 1000;
                 var cls = soon ? ' fixed-soon' : '';
 
                 var cycleText = item.noSpawnDays.indexOf(0) !== -1 &&
@@ -2315,6 +2341,9 @@
         );
 
         // 跨服 BOSS：時間到時提醒一次。
+        // 立即檢查一次，之後每秒檢查。
+        checkCrossServerAlerts();
+
         setInterval(
             checkCrossServerAlerts,
             1000
@@ -2833,7 +2862,7 @@
 
         function presenceBaseUrl() {
             return firebaseUrl.replace(/\/+$/, '') +
-                '/presence';
+                '/gludin/onlineMembers';
         }
 
         function startOnlinePresence() {
