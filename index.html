@@ -2575,7 +2575,7 @@
                                         ) ||
                                         (
                                             newOverMs >= 0 &&
-                                            newOverMs <= 60 * 1000
+                                            newOverMs <= 10 * 60 * 1000
                                         )
                                     ) {
                                         isFlashing = true;
@@ -2602,7 +2602,7 @@
                                 ) ||
                                 (
                                     finalAfterMs >= 0 &&
-                                    finalAfterMs <= 60000
+                                    finalAfterMs <= 10 * 60 * 1000
                                 )
                             ) {
                                 isFlashing = true;
