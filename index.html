@@ -641,6 +641,16 @@
             font-size: 0.85rem;
             font-weight: bold;
         }
+
+        .cross-event-flash .cross-time-main,
+        .cross-event-flash .cross-time {
+            animation: crossEventFlash 0.8s steps(2, start) infinite;
+        }
+
+        @keyframes crossEventFlash {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.2; }
+        }
 </style>
 </head>
 <body>
@@ -793,6 +803,311 @@
             ]
         };
 
+        var crossServerAlertKeys = {};
+
+        function speakCrossServerAlert(bossName, type) {
+            if (
+                typeof voiceAlertsEnabled === 'undefined' ||
+                !voiceAlertsEnabled ||
+                typeof voiceSpeechUnlocked === 'undefined' ||
+                !voiceSpeechUnlocked ||
+                !window.speechSynthesis
+            ) {
+                return;
+            }
+
+            var message;
+
+            if (type === 'photo') {
+                message =
+                    '注意，' +
+                    bossName +
+                    ' 集合拍照時間到了！';
+            } else {
+                message =
+                    '注意，' +
+                    bossName +
+                    ' 出王時間到了！';
+            }
+
+            try {
+                window.speechSynthesis.resume();
+
+                var utterance =
+                    new SpeechSynthesisUtterance(message);
+
+                utterance.lang = 'zh-TW';
+                utterance.rate = 1.05;
+                utterance.pitch = 1;
+                utterance.volume =
+                    typeof voiceAlertVolume === 'number'
+                        ? voiceAlertVolume
+                        : 1;
+
+                window.speechSynthesis.speak(utterance);
+            } catch (e) {}
+        }
+
+        function checkCrossServerAlerts() {
+            var now = new Date();
+
+            var taiwanParts = new Intl.DateTimeFormat(
+                'zh-TW',
+                {
+                    timeZone: 'Asia/Taipei',
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false
+                }
+            ).formatToParts(now);
+
+            function getPart(type) {
+                var p = taiwanParts.find(function(x) {
+                    return x.type === type;
+                });
+
+                return p
+                    ? parseInt(p.value, 10)
+                    : 0;
+            }
+
+            var h = getPart('hour');
+            var m = getPart('minute');
+            var sec = getPart('second');
+
+            var totalSec =
+                h * 3600 +
+                m * 60 +
+                sec;
+
+            var twWeekday =
+                new Intl.DateTimeFormat(
+                    'en-US',
+                    {
+                        timeZone: 'Asia/Taipei',
+                        weekday: 'short'
+                    }
+                ).format(now);
+
+            var dayMap = {
+                Sun: 0,
+                Mon: 1,
+                Tue: 2,
+                Wed: 3,
+                Thu: 4,
+                Fri: 5,
+                Sat: 6
+            };
+
+            var currentDay =
+                dayMap[twWeekday];
+
+            var groups = [
+                {
+                    items:
+                        crossServerBossConfig.weekday,
+                    day: null
+                },
+                {
+                    items:
+                        crossServerBossConfig.weekend.filter(
+                            function(item) {
+                                return (
+                                    String(
+                                        item.area || ''
+                                    ).trim() ===
+                                    '遺忘之島'
+                                );
+                            }
+                        ),
+                    day: 6
+                },
+                {
+                    items:
+                        crossServerBossConfig.weekend.filter(
+                            function(item) {
+                                var area =
+                                    String(
+                                        item.area || ''
+                                    ).trim();
+
+                                var boss =
+                                    String(
+                                        item.boss || ''
+                                    ).trim();
+
+                                return (
+                                    area ===
+                                        '拉斯塔巴德' ||
+                                    boss ===
+                                        '暗殺君王' ||
+                                    boss ===
+                                        '法令君王' ||
+                                    boss ===
+                                        '魔獸君王' ||
+                                    boss ===
+                                        '冥法君王'
+                                );
+                            }
+                        ),
+                    day: 0
+                }
+            ];
+
+            groups.forEach(function(group) {
+                // 假日王只在實際對應的星期通知。
+                if (
+                    group.day !== null &&
+                    currentDay !== group.day
+                ) {
+                    return;
+                }
+
+                group.items.forEach(function(item) {
+                    String(item.time || '')
+                        .split('、')
+                        .forEach(function(timeText) {
+                            var parts =
+                                timeText.split(':');
+
+                            var th =
+                                parseInt(
+                                    parts[0],
+                                    10
+                                );
+
+                            var tm =
+                                parseInt(
+                                    parts[1],
+                                    10
+                                );
+
+                            if (
+                                isNaN(th) ||
+                                isNaN(tm)
+                            ) {
+                                return;
+                            }
+
+                            var eventSec =
+                                th * 3600 +
+                                tm * 60;
+
+                            // 只在「時間到」的那一秒附近通知。
+                            var diff =
+                                eventSec -
+                                totalSec;
+
+                            if (
+                                diff < 0 ||
+                                diff > 1
+                            ) {
+                                return;
+                            }
+
+                            var area =
+                                String(
+                                    item.area || ''
+                                ).trim();
+
+                            var isPhoto =
+                                item.type === '通知' ||
+                                (
+                                    timeText === '15:48' &&
+                                    (
+                                        area ===
+                                            '遺忘之島' ||
+                                        area ===
+                                            '拉斯塔巴德'
+                                    )
+                                );
+
+                            var bossName =
+                                String(
+                                    item.boss || ''
+                                ).trim();
+
+                            if (!bossName) {
+                                bossName = area;
+                            }
+
+                            var todayKey =
+                                new Intl.DateTimeFormat(
+                                    'en-CA',
+                                    {
+                                        timeZone:
+                                            'Asia/Taipei',
+                                        year:
+                                            'numeric',
+                                        month:
+                                            '2-digit',
+                                        day:
+                                            '2-digit'
+                                    }
+                                ).format(now);
+
+                            var key =
+                                area +
+                                '_' +
+                                bossName +
+                                '_' +
+                                timeText +
+                                '_' +
+                                todayKey;
+
+                            var alertKey =
+                                key +
+                                (
+                                    isPhoto
+                                        ? '_photo'
+                                        : '_spawn'
+                                );
+
+                            if (
+                                !crossServerAlertKeys[
+                                    alertKey
+                                ]
+                            ) {
+                                crossServerAlertKeys[
+                                    alertKey
+                                ] = true;
+
+                                speakCrossServerAlert(
+                                    bossName,
+                                    isPhoto
+                                        ? 'photo'
+                                        : 'spawn'
+                                );
+                            }
+                        });
+                });
+            });
+
+            // 防止長時間開頁造成 key 無限增加。
+            var keys =
+                Object.keys(
+                    crossServerAlertKeys
+                );
+
+            if (keys.length > 500) {
+                keys
+                    .slice(
+                        0,
+                        200
+                    )
+                    .forEach(function(key) {
+                        delete
+                            crossServerAlertKeys[
+                                key
+                            ];
+                    });
+            }
+        }
+
         function renderCrossServerBosses() {
             var container = document.getElementById('cross-server-container');
             if (!container) return;
@@ -846,7 +1161,7 @@
                 ? crossServerBossConfig.weekend
                 : crossServerBossConfig.weekday;
 
-            function nextOccurrence(timeText, targetWeekend) {
+            function nextOccurrence(timeText, targetWeekend, targetDay) {
                 var parts = timeText.split(':');
                 var candidate = new Date(now);
 
@@ -873,10 +1188,8 @@
                     return candidate;
                 }
 
-                // 假日：由目前畫面指定的星期決定。
-                // 星期六只找星期六；星期日只找星期日。
-                var targetDay = day;
-
+                // 假日固定指定星期：
+                // 遺忘之島 = 星期六；拉斯塔巴德 = 星期日。
                 while (candidate.getDay() !== targetDay) {
                     candidate.setDate(candidate.getDate() + 1);
                 }
@@ -902,7 +1215,7 @@
                     (s < 10 ? '0' : '') + s;
             }
 
-            function renderGroup(title, items, scheduleWeekend) {
+            function renderGroup(title, items, scheduleWeekend, targetDay) {
                 if (!items.length) return '';
 
                 var isLastabard =
@@ -949,7 +1262,7 @@
                         var occurrences = item.times.map(function(t) {
                             return {
                                 time: t,
-                                date: nextOccurrence(t, scheduleWeekend)
+                                date: nextOccurrence(t, scheduleWeekend, targetDay)
                             };
                         });
 
@@ -978,7 +1291,7 @@
                         var times = item.time.split('、');
 
                         times.forEach(function(t) {
-                            var date = nextOccurrence(t, scheduleWeekend);
+                            var date = nextOccurrence(t, scheduleWeekend, targetDay);
 
                             rows.push({
                                 area: item.area,
@@ -1006,7 +1319,15 @@
                         '</div>';
 
                 rows.forEach(function(item) {
-                    var cls = '';
+                    var shouldFlash =
+                        item.type === '出王' &&
+                        item.countdown >= 0 &&
+                        item.countdown <= 60 * 1000;
+
+                    var cls =
+                        shouldFlash
+                            ? ' cross-event-flash'
+                            : '';
 
                     var action =
                         item.type === '通知'
@@ -1033,8 +1354,9 @@
                             '<span class="cross-time-main">' +
                             timeParts.map(function(t) {
                                 var isNext =
+                                    item.type === '出王' &&
                                     t === item.nextTime &&
-                                    item.countdown > 0 &&
+                                    item.countdown >= 0 &&
                                     item.countdown <= 60 * 1000;
 
                                 return '<span class="' +
@@ -1089,55 +1411,43 @@
             html += renderGroup(
                 '🏰 傲慢之塔｜平日跨服時間',
                 crossServerBossConfig.weekday,
-                false
+                false,
+                null
             );
 
-            if (day === 6) {
-                // 星期六：只顯示遺忘之島
-                var forgotten = [];
+            // 假日兩個區域固定都顯示：
+            // 星期六的遺忘之島、星期日的拉斯塔巴德，
+            // 即使今天不是該區域的出王日也照樣顯示下一次倒數。
+            var forgotten = crossServerBossConfig.weekend.filter(function(item) {
+                return String(item.area || '').trim() === '遺忘之島';
+            });
 
-                crossServerBossConfig.weekend.forEach(function(item) {
-                    if (
-                        String(item.area || '').trim() === '遺忘之島'
-                    ) {
-                        forgotten.push(item);
-                    }
-                });
+            var lastabad = crossServerBossConfig.weekend.filter(function(item) {
+                var area = String(item.area || '').trim();
+                var boss = String(item.boss || '').trim();
 
-                html += renderGroup(
-                    '🏝️ 遺忘之島｜星期六跨服時間',
-                    forgotten,
-                    true
+                return (
+                    area === '拉斯塔巴德' ||
+                    boss === '暗殺君王' ||
+                    boss === '法令君王' ||
+                    boss === '魔獸君王' ||
+                    boss === '冥法君王'
                 );
+            });
 
-            } else if (day === 0) {
-                // 星期日：只顯示拉斯塔巴德
-                var lastabad = [];
+            html += renderGroup(
+                '🏝️ 遺忘之島｜星期六跨服時間',
+                forgotten,
+                true,
+                6
+            );
 
-                crossServerBossConfig.weekend.forEach(function(item) {
-                    var area =
-                        String(item.area || '').trim();
-
-                    var boss =
-                        String(item.boss || '').trim();
-
-                    if (
-                        area === '拉斯塔巴德' ||
-                        boss === '暗殺君王' ||
-                        boss === '法令君王' ||
-                        boss === '魔獸君王' ||
-                        boss === '冥法君王'
-                    ) {
-                        lastabad.push(item);
-                    }
-                });
-
-                html += renderGroup(
-                    '🏰 拉斯塔巴德｜星期日跨服時間',
-                    lastabad,
-                    true
-                );
-            }
+            html += renderGroup(
+                '🏰 拉斯塔巴德｜星期日跨服時間',
+                lastabad,
+                true,
+                0
+            );
 
             container.innerHTML = html;
         }
@@ -2001,6 +2311,12 @@
         // 每秒檢查一次，但只有在語音開關 ON 時才會播放。
         setInterval(
             checkLineageBossVoiceAlerts,
+            1000
+        );
+
+        // 跨服 BOSS：時間到時提醒一次。
+        setInterval(
+            checkCrossServerAlerts,
             1000
         );
 
