@@ -15,6 +15,30 @@
         
         .id-panel { background: linear-gradient(135deg, #2c1a04, #1a1103); padding: 12px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #ff9800; display: flex; align-items: center; gap: 10px; }
         .input-id { padding: 8px 12px; background: #000; border: 1px solid #ff9800; color: #ffd700; border-radius: 4px; font-weight: bold; font-size: 0.95rem; flex-grow: 1; }
+        .active-id-list {
+            width: 100%;
+            margin-top: 7px;
+            padding: 6px 8px;
+            border-top: 1px solid #4a3b00;
+            color: #aaa;
+            font-size: 0.75rem;
+            line-height: 1.5;
+            box-sizing: border-box;
+        }
+        .active-id-title {
+            color: #ffcf33;
+            font-weight: bold;
+            margin-right: 6px;
+        }
+        .active-id-name {
+            display: inline-block;
+            margin: 2px 5px 2px 0;
+            padding: 2px 7px;
+            border: 1px solid #6d5430;
+            border-radius: 5px;
+            color: #eee;
+            background: #29251b;
+        }
         
         .control-panel { background: #262626; padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #444; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
         .maint-zone { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
@@ -637,6 +661,10 @@
     <div class="id-panel">
         <span style="color: #ff9800; font-weight: bold; font-size: 0.9rem;">🔑 填單人員 ID：</span>
         <input type="text" id="user-id-input" class="input-id" placeholder="請先輸入您的遊戲內ID（必填）" oninput="saveLocalID()">
+        <div id="active-id-list" class="active-id-list">
+            <span class="active-id-title">👥 使用中的填單 ID：</span>
+            <span id="active-id-names">目前尚無雲端紀錄</span>
+        </div>
     </div>
 
     <div class="control-panel">
@@ -926,7 +954,7 @@
                     var action =
                         item.type === '通知'
                             ? '🔔 通知'
-                            : '👑 出王';
+                            : '';
 
                     if (item.note) {
                         action +=
@@ -1049,6 +1077,7 @@
                 );
 
                 renderTable();
+                updateActiveIDList();
 
             } catch (error) {
                 console.log('Firebase 讀取錯誤：', error);
@@ -1063,6 +1092,7 @@
                 );
 
                 renderTable();
+                updateActiveIDList();
 
                 if (firebaseUrl.indexOf("YOUR-PROJECT") !== -1) return;
 
@@ -2235,6 +2265,7 @@
             renderTable();
             renderFixedBosses();
             renderCrossServerBosses();
+            updateActiveIDList();
             pullFromCloud();
             startRealtimeSync();
 
@@ -2262,6 +2293,53 @@
                 input.value.trim()
             );
         }
+        function updateActiveIDList() {
+            var container =
+                document.getElementById('active-id-names');
+
+            if (!container) return;
+
+            var ids = {};
+
+            if (
+                typeof bossSpawnMap !== 'undefined' &&
+                bossSpawnMap &&
+                typeof bossSpawnMap === 'object'
+            ) {
+                Object.keys(bossSpawnMap).forEach(function(bossName) {
+                    var value = bossSpawnMap[bossName];
+
+                    if (typeof value !== 'string' || !value) return;
+
+                    var parts = value.split('|');
+                    var id = (parts[1] || '').trim();
+
+                    if (id) ids[id] = true;
+                });
+            }
+
+            var names = Object.keys(ids).sort();
+
+            if (!names.length) {
+                container.textContent = '目前尚無雲端紀錄';
+                return;
+            }
+
+            container.innerHTML = names.map(function(id) {
+                return '<span class="active-id-name">' +
+                    escapeHtml(id) + '</span>';
+            }).join('');
+        }
+
+        function escapeHtml(value) {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
 
         function getValidID() {
             var input =
