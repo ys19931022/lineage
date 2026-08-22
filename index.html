@@ -2298,6 +2298,7 @@
             renderFixedBosses();
             renderCrossServerBosses();
             updateActiveIDList();
+            startOnlinePresence();
             pullFromCloud();
             startRealtimeSync();
 
@@ -2320,47 +2321,280 @@
 
             if (!input) return;
 
+            var name = input.value.trim();
+
             localStorage.setItem(
                 'hms_user_id',
-                input.value.trim()
+                name
             );
+
+            // ID 改變時重新建立 Presence。
+            if (name && presenceStarted) {
+                if (presenceHeartbeatTimer) {
+                    clearInterval(
+                        presenceHeartbeatTimer
+                    );
+                }
+
+                presenceStarted = false;
+                presenceRef = null;
+                startOnlinePresence();
+            } else if (name) {
+                startOnlinePresence();
+            }
         }
+        var presenceRef = null;
+        var presenceConnectedRef = null;
+        var presenceHeartbeatTimer = null;
+        var presenceStarted = false;
+
+        function getPresenceMemberName() {
+            var input =
+                document.getElementById('user-id-input');
+
+            return input
+                ? input.value.trim()
+                : '';
+        }
+
         function updateActiveIDList() {
             var container =
                 document.getElementById('active-id-names');
 
             if (!container) return;
 
-            var ids = {};
+            // 如果 Presence 已經啟動，畫面由 Firebase Presence 更新。
+            if (presenceStarted) return;
 
-            if (
-                typeof bossSpawnMap !== 'undefined' &&
-                bossSpawnMap &&
-                typeof bossSpawnMap === 'object'
-            ) {
-                Object.keys(bossSpawnMap).forEach(function(bossName) {
-                    var value = bossSpawnMap[bossName];
+            container.textContent = '正在同步在線成員…';
+        }
 
-                    if (typeof value !== 'string' || !value) return;
+        function renderOnlineMembers(data) {
+            var container =
+                document.getElementById('active-id-names');
 
-                    var parts = value.split('|');
-                    var id = (parts[1] || '').trim();
+            if (!container) return;
 
-                    if (id) ids[id] = true;
+            var names = [];
+
+            if (data && typeof data === 'object') {
+                Object.keys(data).forEach(function(key) {
+                    var member = data[key];
+
+                    if (
+                        member &&
+                        member.name &&
+                        names.indexOf(member.name) === -1
+                    ) {
+                        names.push(member.name);
+                    }
                 });
             }
 
-            var names = Object.keys(ids).sort();
+            names.sort(function(a, b) {
+                return a.localeCompare(b, 'zh-Hant');
+            });
 
             if (!names.length) {
-                container.textContent = '目前尚無雲端紀錄';
+                container.textContent = '目前沒有在線成員';
                 return;
             }
 
-            container.innerHTML = names.map(function(id) {
-                return '<span class="active-id-name">' +
-                    escapeHtml(id) + '</span>';
-            }).join('');
+            container.innerHTML =
+                names.map(function(name) {
+                    return '<span class="active-id-name">' +
+                        '🟢 ' +
+                        escapeHtml(name) +
+                        '</span>';
+                }).join('');
+        }
+
+        function startOnlinePresence() {
+            if (presenceStarted) return;
+
+            var name = getPresenceMemberName();
+
+            if (!name || typeof firebaseUrl === 'undefined') {
+                return;
+            }
+
+            // 使用固定的 Presence 路徑，所有成員共用同一份在線名單。
+            var encodedName =
+                encodeURIComponent(name);
+
+            var clientId =
+                localStorage.getItem(
+                    'lineagePresenceClientId'
+                );
+
+            if (!clientId) {
+                clientId =
+                    'p_' +
+                    Date.now().toString(36) +
+                    '_' +
+                    Math.random().toString(36).slice(2);
+
+                localStorage.setItem(
+                    'lineagePresenceClientId',
+                    clientId
+                );
+            }
+
+            presenceRef =
+                firebaseUrl +
+                '/presence/' +
+                clientId;
+
+            presenceConnectedRef =
+                firebaseUrl +
+                '/.info/connected';
+
+            presenceStarted = true;
+
+            // 建立自己的在線紀錄。
+            var payload = {
+                name: name,
+                lastSeen: Date.now()
+            };
+
+            fetch(
+                presenceRef + '.json',
+                {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type':
+                            'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                }
+            ).catch(function(error) {
+                console.log(
+                    'Presence 初始化失敗：',
+                    error
+                );
+            });
+
+            // Firebase REST API 本身沒有 JS SDK 的 onDisconnect；
+            // 因此搭配 heartbeat + cleanup，避免關閉頁面後永久殘留。
+            if (presenceHeartbeatTimer) {
+                clearInterval(
+                    presenceHeartbeatTimer
+                );
+            }
+
+            presenceHeartbeatTimer =
+                setInterval(
+                    function() {
+                        fetch(
+                            presenceRef + '.json',
+                            {
+                                method: 'PATCH',
+                                headers: {
+                                    'Content-Type':
+                                        'application/json'
+                                },
+                                body: JSON.stringify({
+                                    name: name,
+                                    lastSeen: Date.now()
+                                })
+                            }
+                        ).catch(function() {});
+                    },
+                    15000
+                );
+
+            // 每 10 秒抓一次在線名單。
+            setInterval(
+                loadOnlinePresence,
+                10000
+            );
+
+            loadOnlinePresence();
+
+            // 離開頁面時立即刪除自己的 Presence。
+            window.addEventListener(
+                'beforeunload',
+                function() {
+                    if (!presenceRef) return;
+
+                    try {
+                        navigator.sendBeacon(
+                            presenceRef + '.json',
+                            new Blob(
+                                [JSON.stringify(null)],
+                                {
+                                    type:
+                                        'application/json'
+                                }
+                            )
+                        );
+                    } catch (e) {
+                        // 若瀏覽器不允許 sendBeacon，
+                        // heartbeat timeout 仍會由其他成員清理。
+                    }
+                }
+            );
+        }
+
+        function loadOnlinePresence() {
+            if (typeof firebaseUrl === 'undefined') return;
+
+            fetch(
+                firebaseUrl +
+                '/presence.json'
+            )
+                .then(function(response) {
+                    return response.json();
+                })
+                .then(function(data) {
+                    var now = Date.now();
+                    var cleaned = {};
+                    var changed = false;
+
+                    if (
+                        data &&
+                        typeof data === 'object'
+                    ) {
+                        Object.keys(data).forEach(
+                            function(key) {
+                                var member = data[key];
+
+                                if (
+                                    member &&
+                                    member.lastSeen &&
+                                    now -
+                                        member.lastSeen <
+                                        45000
+                                ) {
+                                    cleaned[key] = member;
+                                } else if (member) {
+                                    changed = true;
+
+                                    // 清除超過 45 秒沒有心跳的成員。
+                                    fetch(
+                                        firebaseUrl +
+                                        '/presence/' +
+                                        encodeURIComponent(key) +
+                                        '.json',
+                                        {
+                                            method: 'DELETE'
+                                        }
+                                    ).catch(
+                                        function() {}
+                                    );
+                                }
+                            }
+                        );
+                    }
+
+                    renderOnlineMembers(cleaned);
+                })
+                .catch(function(error) {
+                    console.log(
+                        '在線成員同步失敗：',
+                        error
+                    );
+                });
         }
 
         function escapeHtml(value) {
