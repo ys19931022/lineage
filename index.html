@@ -2115,14 +2115,59 @@
                     !rawTime
                 ) return;
 
-                var spawnTimestamp =
+                var originalTimestamp =
                     parseInt(rawTime, 10);
 
-                if (isNaN(spawnTimestamp)) return;
+                if (isNaN(originalTimestamp)) return;
+
+                // ★ 重要修正：
+                // renderTable 會在超過 10 分鐘後自動輪空，
+                // 但原本語音提醒仍拿「舊的王時間」判斷，
+                // 因此輪空第 1、2、3... 輪後就不會再提醒。
+                //
+                // 這裡完全比照 renderTable 的輪空計算，
+                // 找出「真正下一次要出的王時間」。
+                var effectiveTimestamp =
+                    originalTimestamp;
+
+                var graceMs =
+                    10 * 60 * 1000;
+
+                var cooldownMs =
+                    config.cooldown *
+                    60 *
+                    1000;
+
+                if (
+                    nowMs >=
+                    effectiveTimestamp +
+                    graceMs
+                ) {
+                    var autoSkipRounds =
+                        Math.ceil(
+                            (
+                                nowMs -
+                                effectiveTimestamp -
+                                graceMs
+                            ) /
+                            cooldownMs
+                        );
+
+                    if (autoSkipRounds < 1) {
+                        autoSkipRounds = 1;
+                    }
+
+                    effectiveTimestamp =
+                        effectiveTimestamp +
+                        (
+                            autoSkipRounds *
+                            cooldownMs
+                        );
+                }
 
                 var cycleKey =
                     config.name + '_' +
-                    spawnTimestamp;
+                    effectiveTimestamp;
 
                 // 出王前 1 分鐘
                 if (
@@ -2131,7 +2176,8 @@
                     ]
                 ) {
                     var beforeMs =
-                        spawnTimestamp - nowMs;
+                        effectiveTimestamp -
+                        nowMs;
 
                     if (
                         beforeMs > 0 &&
@@ -2156,7 +2202,8 @@
                     ]
                 ) {
                     var afterMs =
-                        nowMs - spawnTimestamp;
+                        nowMs -
+                        effectiveTimestamp;
 
                     if (
                         afterMs >= 0 &&
@@ -2187,12 +2234,14 @@
             ) {
                 fixedBossConfig.forEach(function(fixed) {
 
-                    // 有 noSpawnDays 的固定王，在指定日期完全不出王，
-                    // 因此語音也不應該通知。
-                    var todayDay = new Date().toLocaleDateString(
-                        'en-US',
-                        { timeZone: 'Asia/Taipei', weekday: 'short' }
-                    );
+                    var todayDay =
+                        new Date().toLocaleDateString(
+                            'en-US',
+                            {
+                                timeZone: 'Asia/Taipei',
+                                weekday: 'short'
+                            }
+                        );
 
                     var fixedDayMap = {
                         'Sun': 0,
@@ -2204,11 +2253,16 @@
                         'Sat': 6
                     };
 
-                    todayDay = fixedDayMap[todayDay];
+                    todayDay =
+                        fixedDayMap[todayDay];
 
                     if (
-                        Array.isArray(fixed.noSpawnDays) &&
-                        fixed.noSpawnDays.indexOf(todayDay) !== -1
+                        Array.isArray(
+                            fixed.noSpawnDays
+                        ) &&
+                        fixed.noSpawnDays.indexOf(
+                            todayDay
+                        ) !== -1
                     ) {
                         return;
                     }
@@ -2222,17 +2276,22 @@
                             startText.split(':');
 
                         var hour =
-                            parseInt(timeParts[0], 10);
+                            parseInt(
+                                timeParts[0],
+                                10
+                            );
 
                         var minute =
-                            parseInt(timeParts[1], 10);
+                            parseInt(
+                                timeParts[1],
+                                10
+                            );
 
                         if (
                             isNaN(hour) ||
                             isNaN(minute)
                         ) return;
 
-                        // 建立今天這個固定王時段的時間
                         var target =
                             new Date();
 
@@ -2246,14 +2305,9 @@
                         var todayTargetMs =
                             target.getTime();
 
-                        // ★ 修正固定王「時間到沒語音」的問題
-                        // 不可以單純用 target < now 就直接跳到明天，
-                        // 因為時間到後的幾十秒內，正是「出王時間到」提醒的有效區間。
-                        //
-                        // 只有今天的時間已經超過 1 分鐘，
-                        // 才代表這一輪真的錯過，改抓明天。
                         if (
-                            todayTargetMs < nowMs - 60000
+                            todayTargetMs <
+                            nowMs - 60000
                         ) {
                             target.setDate(
                                 target.getDate() + 1
@@ -2319,7 +2373,6 @@
                     });
                 });
             }
-
         }
 
         // 如果使用者之前選擇 ON，Chrome 重新載入後需要新的
