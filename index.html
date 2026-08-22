@@ -178,10 +178,26 @@
         }
 
         .cross-next-time {
-            font-family: inherit;
-            font-size: 0.65rem;
-            color: #aaa;
-            white-space: nowrap;
+            display: none;
+        }
+
+        .cross-active-time {
+            display: inline-block;
+            animation: cross-active-time-flash 1s infinite;
+            font-weight: 900;
+            color: #ffd700;
+            text-shadow: 0 0 7px rgba(255, 215, 0, 0.9);
+        }
+
+        @keyframes cross-active-time-flash {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.35;
+                transform: scale(1.08);
+            }
         }
 
         .cross-info {
@@ -521,7 +537,11 @@
             }
 
             .cross-next-time {
-                font-size: 0.58rem;
+                display: none;
+            }
+
+            .cross-active-time {
+                transform-origin: left center;
             }
 
             .cross-info span {
@@ -662,7 +682,7 @@
         <span style="color: #ff9800; font-weight: bold; font-size: 0.9rem;">🔑 填單人員 ID：</span>
         <input type="text" id="user-id-input" class="input-id" placeholder="請先輸入您的遊戲內ID（必填）" oninput="saveLocalID()">
         <div id="active-id-list" class="active-id-list">
-            <span class="active-id-title">👥 使用中的填單 ID：</span>
+            <span class="active-id-title">👥 使用中的成員：</span>
             <span id="active-id-names">目前尚無雲端紀錄</span>
         </div>
     </div>
@@ -969,13 +989,25 @@
                     var timeHtml;
 
                     if (isLastabard) {
+                        var timeParts =
+                            item.time.split('、');
+
                         timeHtml =
                             '<span class="cross-time-main">' +
-                                item.time +
-                            '</span>' +
-                            '<span class="cross-next-time">' +
-                                '下一次：' +
-                                item.nextTime +
+                            timeParts.map(function(t) {
+                                var isNext =
+                                    t === item.nextTime &&
+                                    item.countdown > 0 &&
+                                    item.countdown <= 60 * 1000;
+
+                                return '<span class="' +
+                                    (isNext
+                                        ? 'cross-active-time'
+                                        : '') +
+                                    '">' +
+                                    t +
+                                    '</span>';
+                            }).join('、') +
                             '</span>';
                     } else {
                         timeHtml =
