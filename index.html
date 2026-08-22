@@ -801,7 +801,46 @@
 
             var now = new Date();
             var nowMs = now.getTime();
-            var day = now.getDay();
+
+            // 王表固定以台灣時間判斷星期，避免使用者手機／電腦時區
+            // 不是 Asia/Taipei 時造成星期日拉斯塔巴德消失。
+            var taiwanParts = new Intl.DateTimeFormat(
+                'zh-TW',
+                {
+                    timeZone: 'Asia/Taipei',
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false,
+                    weekday: 'short'
+                }
+            ).formatToParts(now);
+
+            var taiwanWeekday = taiwanParts.find(function(p) {
+                return p.type === 'weekday';
+            }).value;
+
+            var dayMap = {
+                '週日': 0,
+                '週一': 1,
+                '週二': 2,
+                '週三': 3,
+                '週四': 4,
+                '週五': 5,
+                '週六': 6,
+                '星期日': 0,
+                '星期一': 1,
+                '星期二': 2,
+                '星期三': 3,
+                '星期四': 4,
+                '星期五': 5,
+                '星期六': 6
+            };
+
+            var day = dayMap[taiwanWeekday];
             var isWeekend = (day === 0 || day === 6);
             var source = isWeekend
                 ? crossServerBossConfig.weekend
@@ -818,15 +857,32 @@
                     0
                 );
 
-                if (candidate.getTime() <= nowMs) {
+                if (!targetWeekend) {
+                    // 平日：下一個週一～週五
+                    if (candidate.getTime() <= nowMs) {
+                        candidate.setDate(candidate.getDate() + 1);
+                    }
+
+                    while (
+                        candidate.getDay() === 0 ||
+                        candidate.getDay() === 6
+                    ) {
+                        candidate.setDate(candidate.getDate() + 1);
+                    }
+
+                    return candidate;
+                }
+
+                // 假日：由目前畫面指定的星期決定。
+                // 星期六只找星期六；星期日只找星期日。
+                var targetDay = day;
+
+                while (candidate.getDay() !== targetDay) {
                     candidate.setDate(candidate.getDate() + 1);
                 }
 
-                while (
-                    ((candidate.getDay() === 0 ||
-                      candidate.getDay() === 6) !== targetWeekend)
-                ) {
-                    candidate.setDate(candidate.getDate() + 1);
+                if (candidate.getTime() <= nowMs) {
+                    candidate.setDate(candidate.getDate() + 7);
                 }
 
                 return candidate;
@@ -1797,7 +1853,22 @@
 
                     // 有 noSpawnDays 的固定王，在指定日期完全不出王，
                     // 因此語音也不應該通知。
-                    var todayDay = new Date().getDay();
+                    var todayDay = new Date().toLocaleDateString(
+                        'en-US',
+                        { timeZone: 'Asia/Taipei', weekday: 'short' }
+                    );
+
+                    var fixedDayMap = {
+                        'Sun': 0,
+                        'Mon': 1,
+                        'Tue': 2,
+                        'Wed': 3,
+                        'Thu': 4,
+                        'Fri': 5,
+                        'Sat': 6
+                    };
+
+                    todayDay = fixedDayMap[todayDay];
 
                     if (
                         Array.isArray(fixed.noSpawnDays) &&
@@ -2340,26 +2411,25 @@
                 name
             );
 
-            // ID 改變時重新建立 Presence。
-            if (name && presenceStarted) {
-                if (presenceHeartbeatTimer) {
-                    clearInterval(
-                        presenceHeartbeatTimer
-                    );
-                }
+            updateActiveIDList();
 
-                presenceStarted = false;
-                presenceRef = null;
-                startOnlinePresence();
-            } else if (name) {
+            if (presenceHeartbeatTimer) {
+                clearInterval(
+                    presenceHeartbeatTimer
+                );
+                presenceHeartbeatTimer = null;
+            }
+
+            presenceRef = null;
+
+            if (name) {
                 startOnlinePresence();
             }
         }
         var presenceRef = null;
-        var presenceConnectedRef = null;
         var presenceHeartbeatTimer = null;
         var presenceRefreshTimer = null;
-        var presenceStarted = false;
+        var presenceClientId = null;
 
         function getPresenceMemberName() {
             var input =
@@ -2376,10 +2446,17 @@
 
             if (!container) return;
 
-            // 如果 Presence 已經啟動，畫面由 Firebase Presence 更新。
-            if (presenceStarted) return;
+            var name = getPresenceMemberName();
 
-            container.textContent = '正在同步在線成員…';
+            if (name) {
+                container.innerHTML =
+                    '<span class="active-id-name">🟢 ' +
+                    escapeHtml(name) +
+                    '</span>';
+            } else {
+                container.textContent =
+                    '請先輸入填單人員 ID';
+            }
         }
 
         function renderOnlineMembers(data) {
@@ -2388,7 +2465,7 @@
 
             if (!container) return;
 
-            var names = [];
+            var names = {};
 
             if (data && typeof data === 'object') {
                 Object.keys(data).forEach(function(key) {
@@ -2397,24 +2474,40 @@
                     if (
                         member &&
                         member.name &&
-                        names.indexOf(member.name) === -1
+                        member.lastSeen &&
+                        Date.now() -
+                            Number(member.lastSeen) <
+                            45000
                     ) {
-                        names.push(member.name);
+                        names[member.name] = true;
                     }
                 });
             }
 
-            names.sort(function(a, b) {
-                return a.localeCompare(b, 'zh-Hant');
-            });
+            var selfName =
+                getPresenceMemberName();
 
-            if (!names.length) {
-                container.textContent = '目前沒有在線成員';
+            if (selfName) {
+                names[selfName] = true;
+            }
+
+            var list = Object.keys(names).sort(
+                function(a, b) {
+                    return a.localeCompare(
+                        b,
+                        'zh-Hant'
+                    );
+                }
+            );
+
+            if (!list.length) {
+                container.textContent =
+                    '目前沒有在線成員';
                 return;
             }
 
             container.innerHTML =
-                names.map(function(name) {
+                list.map(function(name) {
                     return '<span class="active-id-name">' +
                         '🟢 ' +
                         escapeHtml(name) +
@@ -2422,93 +2515,113 @@
                 }).join('');
         }
 
+        function presenceBaseUrl() {
+            return firebaseUrl.replace(/\/+$/, '') +
+                '/presence';
+        }
+
         function startOnlinePresence() {
-            if (presenceStarted) return;
+            var name =
+                getPresenceMemberName();
 
-            var name = getPresenceMemberName();
-
-            if (!name || typeof firebaseUrl === 'undefined') {
+            if (!name) {
+                updateActiveIDList();
                 return;
             }
 
-            // 使用固定的 Presence 路徑，所有成員共用同一份在線名單。
-            var encodedName =
-                encodeURIComponent(name);
+            if (
+                typeof firebaseUrl === 'undefined' ||
+                !firebaseUrl
+            ) {
+                updateActiveIDList();
+                return;
+            }
 
-            var clientId =
-                sessionStorage.getItem(
-                    'lineagePresenceClientId'
-                );
+            if (!presenceClientId) {
+                presenceClientId =
+                    sessionStorage.getItem(
+                        'lineagePresenceClientId'
+                    );
 
-            if (!clientId) {
-                clientId =
-                    'p_' +
-                    Date.now().toString(36) +
-                    '_' +
-                    Math.random().toString(36).slice(2);
+                if (!presenceClientId) {
+                    presenceClientId =
+                        'p_' +
+                        Date.now().toString(36) +
+                        '_' +
+                        Math.random()
+                            .toString(36)
+                            .slice(2);
 
-                sessionStorage.setItem(
-                    'lineagePresenceClientId',
-                    clientId
-                );
+                    sessionStorage.setItem(
+                        'lineagePresenceClientId',
+                        presenceClientId
+                    );
+                }
             }
 
             presenceRef =
-                firebaseUrl +
-                '/presence/' +
-                clientId;
+                presenceBaseUrl() +
+                '/' +
+                encodeURIComponent(
+                    presenceClientId
+                );
 
-            presenceConnectedRef =
-                firebaseUrl +
-                '/.info/connected';
+            // 先立即顯示自己，避免 Firebase 回應前畫面空白。
+            updateActiveIDList();
 
-            // 建立自己的在線紀錄。
-            var payload = {
-                name: name,
-                lastSeen: Date.now()
-            };
-
-            fetch(
-                presenceRef + '.json',
-                {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type':
-                            'application/json'
-                    },
-                    body: JSON.stringify(payload)
-                }
-            )
-                .then(function(response) {
+            function writePresence() {
+                return fetch(
+                    presenceRef + '.json',
+                    {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type':
+                                'application/json'
+                        },
+                        body: JSON.stringify({
+                            name:
+                                getPresenceMemberName() ||
+                                name,
+                            lastSeen:
+                                Date.now()
+                        }),
+                        cache: 'no-store'
+                    }
+                ).then(function(response) {
                     if (!response.ok) {
                         throw new Error(
-                            'HTTP ' + response.status
+                            'HTTP ' +
+                            response.status
                         );
                     }
 
-                    presenceStarted = true;
                     loadOnlinePresence();
-                })
-                .catch(function(error) {
-                    presenceStarted = false;
-                    console.log(
-                        'Presence 初始化失敗：',
-                        error
+                });
+            }
+
+            writePresence().catch(function(error) {
+                console.log(
+                    '在線成員寫入失敗：',
+                    error
+                );
+
+                var container =
+                    document.getElementById(
+                        'active-id-names'
                     );
 
-                    var container =
-                        document.getElementById(
-                            'active-id-names'
-                        );
+                if (container) {
+                    container.innerHTML =
+                        '<span class="active-id-name">' +
+                        '🟢 ' +
+                        escapeHtml(name) +
+                        '</span>' +
+                        '<span style="color:#ff9800;margin-left:6px;">' +
+                        '（雲端同步失敗）' +
+                        '</span>';
+                }
+            });
 
-                    if (container) {
-                        container.textContent =
-                            '在線名單同步失敗，請確認網路連線';
-                    }
-                });
-
-            // Firebase REST API 本身沒有 JS SDK 的 onDisconnect；
-            // 因此搭配 heartbeat + cleanup，避免關閉頁面後永久殘留。
             if (presenceHeartbeatTimer) {
                 clearInterval(
                     presenceHeartbeatTimer
@@ -2518,6 +2631,8 @@
             presenceHeartbeatTimer =
                 setInterval(
                     function() {
+                        if (!presenceRef) return;
+
                         fetch(
                             presenceRef + '.json',
                             {
@@ -2530,60 +2645,77 @@
                                     name:
                                         getPresenceMemberName() ||
                                         name,
-                                    lastSeen: Date.now()
-                                })
+                                    lastSeen:
+                                        Date.now()
+                                }),
+                                cache: 'no-store'
                             }
-                        ).catch(function() {});
+                        ).catch(function(error) {
+                            console.log(
+                                '在線心跳失敗：',
+                                error
+                            );
+                        });
                     },
                     15000
                 );
 
-            // 每 10 秒抓一次在線名單。
             if (!presenceRefreshTimer) {
                 presenceRefreshTimer =
                     setInterval(
                         loadOnlinePresence,
-                        10000
+                        5000
                     );
             }
 
             loadOnlinePresence();
 
-            // 離開頁面時立即刪除自己的 Presence。
             window.addEventListener(
                 'pagehide',
                 function() {
                     if (!presenceRef) return;
 
-                    try {
-                        fetch(
-                            presenceRef + '.json',
-                            {
-                                method: 'DELETE',
-                                keepalive: true
-                            }
-                        );
-                    } catch (e) {
-                        // heartbeat timeout 仍會自動清理。
-                    }
+                    fetch(
+                        presenceRef + '.json',
+                        {
+                            method: 'DELETE',
+                            keepalive: true
+                        }
+                    ).catch(function() {});
                 }
             );
         }
 
         function loadOnlinePresence() {
-            if (typeof firebaseUrl === 'undefined') return;
+            if (
+                typeof firebaseUrl === 'undefined' ||
+                !firebaseUrl
+            ) {
+                return;
+            }
 
             fetch(
-                firebaseUrl +
-                '/presence.json'
+                presenceBaseUrl() +
+                '.json?t=' +
+                Date.now(),
+                {
+                    method: 'GET',
+                    cache: 'no-store'
+                }
             )
                 .then(function(response) {
+                    if (!response.ok) {
+                        throw new Error(
+                            'HTTP ' +
+                            response.status
+                        );
+                    }
+
                     return response.json();
                 })
                 .then(function(data) {
                     var now = Date.now();
                     var cleaned = {};
-                    var changed = false;
 
                     if (
                         data &&
@@ -2591,27 +2723,32 @@
                     ) {
                         Object.keys(data).forEach(
                             function(key) {
-                                var member = data[key];
+                                var member =
+                                    data[key];
 
                                 if (
                                     member &&
+                                    member.name &&
                                     member.lastSeen &&
                                     now -
-                                        member.lastSeen <
+                                        Number(
+                                            member.lastSeen
+                                        ) <
                                         45000
                                 ) {
-                                    cleaned[key] = member;
-                                } else if (member) {
-                                    changed = true;
-
-                                    // 清除超過 45 秒沒有心跳的成員。
+                                    cleaned[key] =
+                                        member;
+                                } else {
                                     fetch(
-                                        firebaseUrl +
-                                        '/presence/' +
-                                        encodeURIComponent(key) +
+                                        presenceBaseUrl() +
+                                        '/' +
+                                        encodeURIComponent(
+                                            key
+                                        ) +
                                         '.json',
                                         {
-                                            method: 'DELETE'
+                                            method:
+                                                'DELETE'
                                         }
                                     ).catch(
                                         function() {}
@@ -2621,13 +2758,18 @@
                         );
                     }
 
-                    renderOnlineMembers(cleaned);
+                    renderOnlineMembers(
+                        cleaned
+                    );
                 })
                 .catch(function(error) {
                     console.log(
-                        '在線成員同步失敗：',
+                        '在線成員讀取失敗：',
                         error
                     );
+
+                    // 讀取失敗時至少保留目前自己的名稱。
+                    updateActiveIDList();
                 });
         }
 
