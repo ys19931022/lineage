@@ -2587,6 +2587,27 @@
                             // 直接拿它排序，不再只比較 HH:MM:SS。
                             sortTime = spawnTimestamp;
 
+                            // ★ 最終確認：自動輪空計算完成後，
+                            // 以「畫面最後真正顯示的下一次王時間」判斷閃爍。
+                            var finalBeforeMs =
+                                spawnTimestamp - nowMs;
+
+                            var finalAfterMs =
+                                nowMs - spawnTimestamp;
+
+                            if (
+                                (
+                                    finalBeforeMs > 0 &&
+                                    finalBeforeMs <= 60000
+                                ) ||
+                                (
+                                    finalAfterMs >= 0 &&
+                                    finalAfterMs <= 60000
+                                )
+                            ) {
+                                isFlashing = true;
+                            }
+
                             var dObj =
                                 new Date(
                                     spawnTimestamp
@@ -2671,15 +2692,23 @@
                     timeColor = 'var(--purple-theme)';
                 }
 
+                // ★ 閃爍狀態直接同時寫入 class + inline animation，
+                // 避免不同瀏覽器的 CSS cascade / hover 樣式把動畫吃掉。
                 var flashClassStr =
                     isFlashing
                         ? ' class="boss-time time-flash"'
                         : ' class="boss-time"';
 
+                var flashStyle =
+                    isFlashing
+                        ? ';animation:flash-warning 1s infinite !important;font-weight:900;text-shadow:0 0 8px rgba(255,87,34,0.9)'
+                        : '';
+
                 row.innerHTML =
                     '<div class="boss-info">' +
                         '<div style="color:' +
                             timeColor +
+                            flashStyle +
                             '"' +
                             flashClassStr +
                         '>' +
