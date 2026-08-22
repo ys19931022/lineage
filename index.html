@@ -1864,7 +1864,7 @@
                 var row = document.createElement('div');
                 row.className = 'fixed-row';
 
-                var soon = item.countdown <= 30 * 60 * 1000;
+                var soon = item.countdown <= 60 * 1000;
                 var cls = soon ? ' fixed-soon' : '';
 
                 var cycleText = item.noSpawnDays.indexOf(0) !== -1 &&
