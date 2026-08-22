@@ -1054,25 +1054,29 @@
             );
 
             if (isWeekend) {
-                var forgotten = crossServerBossConfig.weekend.filter(function(item) {
-                    return item.area === '遺忘之島';
-                });
+                var isSaturday = day === 6;
 
-                var lastabad = crossServerBossConfig.weekend.filter(function(item) {
-                    return item.area === '拉斯塔巴德';
-                });
+                if (isSaturday) {
+                    var forgotten = crossServerBossConfig.weekend.filter(function(item) {
+                        return item.area === '遺忘之島';
+                    });
 
-                html += renderGroup(
-                    '🏝️ 遺忘之島｜假日跨服時間',
-                    forgotten,
-                    true
-                );
+                    html += renderGroup(
+                        '🏝️ 遺忘之島｜星期六跨服時間',
+                        forgotten,
+                        true
+                    );
+                } else {
+                    var lastabad = crossServerBossConfig.weekend.filter(function(item) {
+                        return item.area === '拉斯塔巴德';
+                    });
 
-                html += renderGroup(
-                    '🏰 拉斯塔巴德｜假日跨服時間',
-                    lastabad,
-                    true
-                );
+                    html += renderGroup(
+                        '🏰 拉斯塔巴德｜星期日跨服時間',
+                        lastabad,
+                        true
+                    );
+                }
             }
 
             container.innerHTML = html;
