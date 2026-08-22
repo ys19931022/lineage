@@ -131,17 +131,7 @@
             font-weight: bold;
             margin-bottom: 6px;
         }
-
-        .cross-server-period {
-            background: #2a241b;
-            color: #ffcc80;
-            border: 1px solid #6d5430;
-            border-radius: 6px;
-            padding: 8px 10px;
-            font-weight: bold;
-        }
-
-        .cross-row {
+.cross-row {
             display: grid;
             grid-template-columns: 180px minmax(0, 1fr) 150px;
             align-items: center;
@@ -1037,14 +1027,7 @@
                 return html;
             }
 
-            var titleText = isWeekend
-                ? '假日跨服時間'
-                : '平日跨服時間';
-
-            var html =
-                '<div class="cross-server-period">' +
-                    '📅 ' + titleText +
-                '</div>';
+            var html = '';
 
             // 平日傲慢之塔固定保留，不會因為今天是六、日而消失。
             html += renderGroup(
@@ -1053,45 +1036,51 @@
                 false
             );
 
-            if (isWeekend) {
-                var isSaturday = day === 6;
+            if (day === 6) {
+                // 星期六：只顯示遺忘之島
+                var forgotten = [];
 
-                if (isSaturday) {
-                    var forgotten = crossServerBossConfig.weekend.filter(function(item) {
-                        return item.area === '遺忘之島';
-                    });
-
-                    html += renderGroup(
-                        '🏝️ 遺忘之島｜星期六跨服時間',
-                        forgotten,
-                        true
-                    );
-                } else {
-                    var lastabad = crossServerBossConfig.weekend.filter(function(item) {
-                        return String(item.area || '').trim() === '拉斯塔巴德';
-                    });
-
-                    // 若舊資料的區域名稱沒有 area 欄位，
-                    // 仍以 BOSS 名稱判斷，避免拉斯塔巴德整區消失。
-                    if (!lastabad.length) {
-                        lastabad = crossServerBossConfig.weekend.filter(function(item) {
-                            var name = String(item.name || '').trim();
-                            return [
-                                '拉斯塔巴德',
-                                '暗殺君王',
-                                '法令君王',
-                                '魔獸君王',
-                                '冥法君王'
-                            ].indexOf(name) !== -1;
-                        });
+                crossServerBossConfig.weekend.forEach(function(item) {
+                    if (
+                        String(item.area || '').trim() === '遺忘之島'
+                    ) {
+                        forgotten.push(item);
                     }
+                });
 
-                    html += renderGroup(
-                        '🏰 拉斯塔巴德｜星期日跨服時間',
-                        lastabad,
-                        true
-                    );
-                }
+                html += renderGroup(
+                    '🏝️ 遺忘之島｜星期六跨服時間',
+                    forgotten,
+                    true
+                );
+
+            } else if (day === 0) {
+                // 星期日：只顯示拉斯塔巴德
+                var lastabad = [];
+
+                crossServerBossConfig.weekend.forEach(function(item) {
+                    var area =
+                        String(item.area || '').trim();
+
+                    var boss =
+                        String(item.boss || '').trim();
+
+                    if (
+                        area === '拉斯塔巴德' ||
+                        boss === '暗殺君王' ||
+                        boss === '法令君王' ||
+                        boss === '魔獸君王' ||
+                        boss === '冥法君王'
+                    ) {
+                        lastabad.push(item);
+                    }
+                });
+
+                html += renderGroup(
+                    '🏰 拉斯塔巴德｜星期日跨服時間',
+                    lastabad,
+                    true
+                );
             }
 
             container.innerHTML = html;
@@ -1514,7 +1503,7 @@
 
                 var cycleText = item.noSpawnDays.indexOf(0) !== -1 &&
                                 item.noSpawnDays.indexOf(6) !== -1
-                    ? '平日出王｜星期六、星期日不出王'
+                    ? '平日出王｜假日不出王'
                     : '每日';
 
                 row.innerHTML =
