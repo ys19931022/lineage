@@ -155,8 +155,9 @@
         }
 
         .cross-row:hover {
-            background: #292929;
-            border-color: #777;
+            background: var(--card-bg);
+            border-color: var(--border-color);
+            box-shadow: none;
         }
 
         .cross-time {
@@ -241,11 +242,7 @@
             white-space: nowrap;
         }
 
-        .cross-soon .cross-time,
-        .cross-soon .cross-countdown {
-            color: #ffb74d;
-            font-weight: bold;
-        }
+        
 
         .boss-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
         .boss-row { display: flex; align-items: center; justify-content: space-between; background: var(--card-bg); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-color); }
@@ -820,7 +817,7 @@
                 ? crossServerBossConfig.weekend
                 : crossServerBossConfig.weekday;
 
-            function nextOccurrence(timeText) {
+            function nextOccurrence(timeText, targetWeekend) {
                 var parts = timeText.split(':');
                 var candidate = new Date(now);
 
@@ -833,15 +830,13 @@
 
                 if (candidate.getTime() <= nowMs) {
                     candidate.setDate(candidate.getDate() + 1);
+                }
 
-                    var targetWeekend = isWeekend;
-
-                    while (
-                        ((candidate.getDay() === 0 ||
-                          candidate.getDay() === 6) !== targetWeekend)
-                    ) {
-                        candidate.setDate(candidate.getDate() + 1);
-                    }
+                while (
+                    ((candidate.getDay() === 0 ||
+                      candidate.getDay() === 6) !== targetWeekend)
+                ) {
+                    candidate.setDate(candidate.getDate() + 1);
                 }
 
                 return candidate;
@@ -861,7 +856,7 @@
                     (s < 10 ? '0' : '') + s;
             }
 
-            function renderGroup(title, items) {
+            function renderGroup(title, items, scheduleWeekend) {
                 if (!items.length) return '';
 
                 var isLastabard =
@@ -908,7 +903,7 @@
                         var occurrences = item.times.map(function(t) {
                             return {
                                 time: t,
-                                date: nextOccurrence(t)
+                                date: nextOccurrence(t, scheduleWeekend)
                             };
                         });
 
@@ -937,7 +932,7 @@
                         var times = item.time.split('、');
 
                         times.forEach(function(t) {
-                            var date = nextOccurrence(t);
+                            var date = nextOccurrence(t, scheduleWeekend);
 
                             rows.push({
                                 area: item.area,
@@ -965,11 +960,7 @@
                         '</div>';
 
                 rows.forEach(function(item) {
-                    var soon =
-                        item.countdown <= 30 * 60 * 1000;
-
-                    var cls =
-                        soon ? ' cross-soon' : '';
+                    var cls = '';
 
                     var action =
                         item.type === '通知'
@@ -1055,20 +1046,33 @@
                     '📅 ' + titleText +
                 '</div>';
 
+            // 平日傲慢之塔固定保留，不會因為今天是六、日而消失。
+            html += renderGroup(
+                '🏰 傲慢之塔｜平日跨服時間',
+                crossServerBossConfig.weekday,
+                false
+            );
+
             if (isWeekend) {
-                var forgotten = source.filter(function(item) {
+                var forgotten = crossServerBossConfig.weekend.filter(function(item) {
                     return item.area === '遺忘之島';
                 });
 
-                var lastabad = source.filter(function(item) {
+                var lastabad = crossServerBossConfig.weekend.filter(function(item) {
                     return item.area === '拉斯塔巴德';
                 });
 
-                html += renderGroup('🏝️ 遺忘之島', forgotten);
-                html += renderGroup('🏰 拉斯塔巴德', lastabad);
+                html += renderGroup(
+                    '🏝️ 遺忘之島｜假日跨服時間',
+                    forgotten,
+                    true
+                );
 
-            } else {
-                html += renderGroup('🏰 傲慢之塔', source);
+                html += renderGroup(
+                    '🏰 拉斯塔巴德｜假日跨服時間',
+                    lastabad,
+                    true
+                );
             }
 
             container.innerHTML = html;
@@ -2346,6 +2350,7 @@
         var presenceRef = null;
         var presenceConnectedRef = null;
         var presenceHeartbeatTimer = null;
+        var presenceRefreshTimer = null;
         var presenceStarted = false;
 
         function getPresenceMemberName() {
@@ -2423,7 +2428,7 @@
                 encodeURIComponent(name);
 
             var clientId =
-                localStorage.getItem(
+                sessionStorage.getItem(
                     'lineagePresenceClientId'
                 );
 
@@ -2434,7 +2439,7 @@
                     '_' +
                     Math.random().toString(36).slice(2);
 
-                localStorage.setItem(
+                sessionStorage.setItem(
                     'lineagePresenceClientId',
                     clientId
                 );
@@ -2448,8 +2453,6 @@
             presenceConnectedRef =
                 firebaseUrl +
                 '/.info/connected';
-
-            presenceStarted = true;
 
             // 建立自己的在線紀錄。
             var payload = {
@@ -2467,12 +2470,34 @@
                     },
                     body: JSON.stringify(payload)
                 }
-            ).catch(function(error) {
-                console.log(
-                    'Presence 初始化失敗：',
-                    error
-                );
-            });
+            )
+                .then(function(response) {
+                    if (!response.ok) {
+                        throw new Error(
+                            'HTTP ' + response.status
+                        );
+                    }
+
+                    presenceStarted = true;
+                    loadOnlinePresence();
+                })
+                .catch(function(error) {
+                    presenceStarted = false;
+                    console.log(
+                        'Presence 初始化失敗：',
+                        error
+                    );
+
+                    var container =
+                        document.getElementById(
+                            'active-id-names'
+                        );
+
+                    if (container) {
+                        container.textContent =
+                            '在線名單同步失敗，請確認網路連線';
+                    }
+                });
 
             // Firebase REST API 本身沒有 JS SDK 的 onDisconnect；
             // 因此搭配 heartbeat + cleanup，避免關閉頁面後永久殘留。
@@ -2494,7 +2519,9 @@
                                         'application/json'
                                 },
                                 body: JSON.stringify({
-                                    name: name,
+                                    name:
+                                        getPresenceMemberName() ||
+                                        name,
                                     lastSeen: Date.now()
                                 })
                             }
@@ -2504,33 +2531,32 @@
                 );
 
             // 每 10 秒抓一次在線名單。
-            setInterval(
-                loadOnlinePresence,
-                10000
-            );
+            if (!presenceRefreshTimer) {
+                presenceRefreshTimer =
+                    setInterval(
+                        loadOnlinePresence,
+                        10000
+                    );
+            }
 
             loadOnlinePresence();
 
             // 離開頁面時立即刪除自己的 Presence。
             window.addEventListener(
-                'beforeunload',
+                'pagehide',
                 function() {
                     if (!presenceRef) return;
 
                     try {
-                        navigator.sendBeacon(
+                        fetch(
                             presenceRef + '.json',
-                            new Blob(
-                                [JSON.stringify(null)],
-                                {
-                                    type:
-                                        'application/json'
-                                }
-                            )
+                            {
+                                method: 'DELETE',
+                                keepalive: true
+                            }
                         );
                     } catch (e) {
-                        // 若瀏覽器不允許 sendBeacon，
-                        // heartbeat timeout 仍會由其他成員清理。
+                        // heartbeat timeout 仍會自動清理。
                     }
                 }
             );
